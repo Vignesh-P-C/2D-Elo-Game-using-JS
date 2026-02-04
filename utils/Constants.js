@@ -1,0 +1,9 @@
+export const WORLD = {
+  WIDTH: 3000,
+  GROUND_HEIGHT: 40,
+  DEATH_Y_OFFSET: 200,
+
+  // 🗡 Combat tuning
+  PLAYER_ATTACK_RANGE: 45,
+  PLAYER_ATTACK_HEIGHT: 35,
+};
