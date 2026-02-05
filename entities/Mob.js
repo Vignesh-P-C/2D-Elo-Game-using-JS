@@ -1,6 +1,13 @@
 import { Entity } from "./Entity.js";
 import { WORLD } from "../utils/Constants.js";
 
+export const MOB_STATES = {
+  IDLE: "idle",
+  CHASE: "chase",
+  STUNNED: "stunned",
+  DEAD: "dead",
+};
+
 export class Mob extends Entity {
   constructor(x, y, direction = -1) {
     super(x, y, 40, 40);
@@ -24,6 +31,8 @@ export class Mob extends Entity {
     this.knockbackVX = 0;
     this.maxKnockback = 500;
 
+    this.state = MOB_STATES.CHASE;
+
   }
 
 takeDamage(amount, attackerX = null) {
@@ -32,7 +41,8 @@ takeDamage(amount, attackerX = null) {
   this.hitFlashTimer = 0.12;
 
   // 🧠 Hit stun (milliseconds feel)
-  this.hitStun = 0.15;
+this.hitStun = 0.15;
+this.state = MOB_STATES.STUNNED;
 
   // 💥 Directional knockback
   if (attackerX !== null) {
@@ -42,22 +52,27 @@ takeDamage(amount, attackerX = null) {
 
   if (this.health <= 0) {
     this.isDead = true;
+      this.state = MOB_STATES.DEAD;
+
   }
 }
 
 update(dt, canvas) {
-  if (this.isDead) return;
+  if (this.state === MOB_STATES.DEAD) return;
 
-  // 🧠 Hit stun: freeze normal movement
-  if (this.hitStun > 0) {
+  if (this.state === MOB_STATES.STUNNED) {
+    // 🧠 Stunned: apply knockback only
     this.hitStun -= dt;
 
-    // Apply knockback decay
     this.x += this.knockbackVX * dt;
     this.knockbackVX *= 0.85;
 
-  } else {
-    // Normal movement
+    if (this.hitStun <= 0) {
+      this.state = MOB_STATES.CHASE;
+    }
+  } 
+  else if (this.state === MOB_STATES.CHASE) {
+    // 🏃 Normal movement
     this.vx = Math.sign(this.vx) * this.speed;
     super.update(dt);
   }
@@ -77,6 +92,7 @@ update(dt, canvas) {
   const groundY = canvas.height - WORLD.GROUND_HEIGHT;
   this.y = groundY - this.height;
 }
+
 
 
   draw(ctx) {
