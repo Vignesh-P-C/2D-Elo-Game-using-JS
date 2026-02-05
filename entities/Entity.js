@@ -8,7 +8,7 @@ export class Entity {
     this.vx = 0;
     this.vy = 0;
   }
-
+// test commit
   update(dt) {
     this.x += this.vx * dt;
     this.y += this.vy * dt;
