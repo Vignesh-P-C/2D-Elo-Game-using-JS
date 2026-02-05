@@ -64,7 +64,7 @@ export class Game {
         !mob.isDead
       ) {
         if (isColliding(attackHitbox, mob)) {
-          mob.takeDamage(this.player.attackDamage);
+mob.takeDamage(this.player.attackDamage, this.player.x);
         }
       }
 

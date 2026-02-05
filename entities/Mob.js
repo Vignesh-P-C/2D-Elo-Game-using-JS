@@ -18,32 +18,66 @@ export class Mob extends Entity {
 
     // 💀 State
     this.isDead = false;
+
+    // 🧠 Combat response
+    this.hitStun = 0;
+    this.knockbackVX = 0;
+    this.maxKnockback = 500;
+
   }
 
-  takeDamage(amount) {
-    this.health -= amount;
-    this.hitThisSwing = true;
-    this.hitFlashTimer = 0.12; // flash duration
+takeDamage(amount, attackerX = null) {
+  this.health -= amount;
+  this.hitThisSwing = true;
+  this.hitFlashTimer = 0.12;
 
-    if (this.health <= 0) {
-      this.isDead = true;
-    }
+  // 🧠 Hit stun (milliseconds feel)
+  this.hitStun = 0.15;
+
+  // 💥 Directional knockback
+  if (attackerX !== null) {
+    const dir = this.x < attackerX ? -1 : 1;
+    this.knockbackVX = dir * this.maxKnockback;
   }
 
-  update(dt, canvas) {
-    if (this.isDead) return;
+  if (this.health <= 0) {
+    this.isDead = true;
+  }
+}
 
+update(dt, canvas) {
+  if (this.isDead) return;
+
+  // 🧠 Hit stun: freeze normal movement
+  if (this.hitStun > 0) {
+    this.hitStun -= dt;
+
+    // Apply knockback decay
+    this.x += this.knockbackVX * dt;
+    this.knockbackVX *= 0.85;
+
+  } else {
+    // Normal movement
+    this.vx = Math.sign(this.vx) * this.speed;
     super.update(dt);
-
-    // Hit flash timer
-    if (this.hitFlashTimer > 0) {
-      this.hitFlashTimer -= dt;
-    }
-
-    // Ground lock (safe)
-    const groundY = canvas.height - WORLD.GROUND_HEIGHT;
-    this.y = groundY - this.height;
   }
+
+  // Clamp knockback (safety)
+  this.knockbackVX = Math.max(
+    -this.maxKnockback,
+    Math.min(this.knockbackVX, this.maxKnockback)
+  );
+
+  // Hit flash timer
+  if (this.hitFlashTimer > 0) {
+    this.hitFlashTimer -= dt;
+  }
+
+  // Ground lock
+  const groundY = canvas.height - WORLD.GROUND_HEIGHT;
+  this.y = groundY - this.height;
+}
+
 
   draw(ctx) {
     // Flash when hit
