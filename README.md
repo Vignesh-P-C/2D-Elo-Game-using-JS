@@ -21,3 +21,29 @@ earns ELO through combat, and progresses through increasingly difficult levels.
 
 ## Status
 🚧 Active development
+
+▶️ Run Locally
+```
+# clone the repo
+git clone https://github.com/<your-username>/2d-elo-game.git
+
+# move into project folder
+cd 2d-elo-game
+
+# start a local server (any ONE option)
+python -m http.server
+# OR
+npx serve .
+# OR (VS Code users)
+# Right click index.html → Open with Live Server
+```
+
+Then open in your browser:
+```
+http://localhost:8000
+```
+⚠️ Important Note
+
+This project uses modern JavaScript ES modules (import/export),
+so it must be served over HTTP.
+Opening index.html directly using file:// will not work.
