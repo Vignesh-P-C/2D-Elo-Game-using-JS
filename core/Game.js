@@ -2,6 +2,8 @@ import { Mob } from "../entities/Mob.js";
 import { WORLD } from "../utils/Constants.js";
 import { InputManager } from "../input/InputManager.js";
 import { Player } from "../entities/Player.js";
+import { StateManager } from "./StateManager.js";
+
 
 export class Game {
   constructor(ctx) {
@@ -16,9 +18,21 @@ export class Game {
     this.mobs = [];
     this.spawnTimer = 0;
     this.spawnInterval = 2;
+    this.stateManager = new StateManager();
+
   }
 
   update(dt) {
+    if (this.stateManager.isGameOver()) {
+  // Respawn input
+  if (this.input.isKeyDown("KeyR")) {
+    this.resetLevel();
+    this.player.health = this.player.maxHealth;
+    this.stateManager.setState("playing");
+  }
+  return;
+}
+
     // ---- PLAYER ----
     this.player.update(dt, this.input, this.canvas);
 
@@ -82,10 +96,10 @@ mob.takeDamage(this.player.attackDamage, this.player.x);
       this.resetLevel();
     }
 
-    if (this.player.health <= 0) {
-      this.resetLevel();
-      this.player.health = this.player.maxHealth;
-    }
+if (this.player.health <= 0) {
+  this.stateManager.setState("game_over");
+}
+
   }
 
   render() {
@@ -137,7 +151,39 @@ mob.takeDamage(this.player.attackDamage, this.player.x);
     this.ctx.font = "20px Arial";
     this.ctx.fillText("Game running", 20, 30);
     this.ctx.fillText(`Mobs: ${this.mobs.length}`, 20, 60);
+
+    if (this.stateManager.isGameOver()) {
+  this.drawDeathScreen();
+}
+
   }
+drawDeathScreen() {
+  const ctx = this.ctx;
+  const w = this.canvas.width;
+  const h = this.canvas.height;
+
+  // Dark overlay
+  ctx.fillStyle = "rgba(0, 0, 0, 0.75)";
+  ctx.fillRect(0, 0, w, h);
+
+  // YOU DIED
+  ctx.fillStyle = "#ff3333";
+  ctx.font = "bold 64px Arial";
+  ctx.textAlign = "center";
+  ctx.fillText("YOU DIED", w / 2, h / 2 - 40);
+
+  // Optional emoji flair
+  ctx.font = "32px Arial";
+  ctx.fillText("💀", w / 2, h / 2);
+
+  // Respawn hint
+  ctx.fillStyle = "white";
+  ctx.font = "20px Arial";
+  ctx.fillText("Press R to Respawn", w / 2, h / 2 + 60);
+
+  ctx.textAlign = "left";
+}
+
 
   resetLevel() {
     this.player.x = 100;
@@ -147,6 +193,7 @@ mob.takeDamage(this.player.attackDamage, this.player.x);
     this.cameraX = 0;
     this.mobs = [];
   }
+  
 }
 
 // ✅ SAFE collision (prevents freezes forever)
