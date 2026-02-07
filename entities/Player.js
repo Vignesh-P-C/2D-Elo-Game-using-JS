@@ -165,38 +165,32 @@ export class Player extends Entity {
   // DRAW (ANIMATED)
   // ========================
   draw(ctx) {
-    ctx.save();
+  ctx.save();
 
-    let color = this.invincible ? "#A5D6A7" : "#4CAF50";
-    let drawWidth = this.width;
-    let xOffset = 0;
+  const emoji = "🥷";
+  const size = 32;
 
-    // 🏃 Run squash
-    if (this.animState === "run") {
-      drawWidth += Math.sin(Date.now() * 0.02) * 4;
-    }
-
-    // 🗡 Attack animation
-    if (this.animState === "attack") {
-      color = "#FFC107";
-
-      if (this.attackPhase === "windup") {
-        xOffset = -5 * this.facing;
-      }
-
-      if (this.attackPhase === "strike") {
-        drawWidth += 10;
-        xOffset = 5 * this.facing;
-      }
-
-      if (this.attackPhase === "recover") {
-        drawWidth += 4;
-      }
-    }
-
-    ctx.fillStyle = color;
-    ctx.fillRect(this.x + xOffset, this.y, drawWidth, this.height);
-
-    ctx.restore();
+  // Slight blink when invincible
+  if (this.invincible && Math.floor(Date.now() / 100) % 2 === 0) {
+    ctx.globalAlpha = 0.4;
   }
+
+  ctx.font = `${size}px Arial`;
+
+  // Flip emoji based on facing
+  ctx.translate(
+    this.x + this.width / 2,
+    this.y + this.height / 2
+  );
+  ctx.scale(this.facing, 1);
+
+  ctx.fillText(
+    emoji,
+    -size / 2,
+    size / 2
+  );
+
+  ctx.restore();
+}
+
 }
