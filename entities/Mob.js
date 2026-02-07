@@ -144,17 +144,32 @@ performAttack(player) {
       this.hitFlashTimer > 0 ? "#FFCDD2" : "#E53935";
 
     super.draw(ctx);
+// Health bar
+// ❤️ Single-heart health (top-down drain)
+const healthRatio = Math.max(0, this.health / this.maxHealth);
 
-    // Small health bar
-    ctx.fillStyle = "black";
-    ctx.fillRect(this.x, this.y - 6, this.width, 4);
+const heartX = this.x;
+const heartY = this.y - 10;
+const heartSize = 18;
 
-    ctx.fillStyle = "lime";
-    ctx.fillRect(
-      this.x,
-      this.y - 6,
-      this.width * (this.health / this.maxHealth),
-      4
-    );
+// Empty heart (background)
+ctx.font = `${heartSize}px Arial`;
+ctx.fillStyle = "#555";
+ctx.fillText("❤️", heartX, heartY);
+
+// Red heart fill (clipped from top)
+ctx.save();
+ctx.beginPath();
+ctx.rect(
+  heartX,
+  heartY - heartSize + heartSize * (1 - healthRatio), // start lower as health drops
+  heartSize,
+  heartSize * healthRatio
+);
+ctx.clip();
+
+ctx.fillStyle = "red";
+ctx.fillText("❤️", heartX, heartY);
+ctx.restore();
   }
 }
