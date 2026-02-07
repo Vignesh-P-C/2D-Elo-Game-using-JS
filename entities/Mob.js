@@ -4,9 +4,11 @@ import { WORLD } from "../utils/Constants.js";
 export const MOB_STATES = {
   IDLE: "idle",
   CHASE: "chase",
+  ATTACK: "attack",
   STUNNED: "stunned",
   DEAD: "dead",
 };
+
 
 export class Mob extends Entity {
   constructor(x, y, direction = -1) {
@@ -32,6 +34,14 @@ export class Mob extends Entity {
     this.maxKnockback = 500;
 
     this.state = MOB_STATES.CHASE;
+    
+    // 🗡 Attack
+this.attackRange = 40;
+this.attackDamage = 10;
+this.attackCooldown = 0;
+this.attackCooldownTime = 1.0; // seconds
+this.attackWindup = 0.25;
+this.attackTimer = 0;
 
   }
 
@@ -57,11 +67,15 @@ this.state = MOB_STATES.STUNNED;
   }
 }
 
-update(dt, canvas) {
+update(dt, canvas, player) {
   if (this.state === MOB_STATES.DEAD) return;
 
+  // Cooldown tick
+  if (this.attackCooldown > 0) {
+    this.attackCooldown -= dt;
+  }
+
   if (this.state === MOB_STATES.STUNNED) {
-    // 🧠 Stunned: apply knockback only
     this.hitStun -= dt;
 
     this.x += this.knockbackVX * dt;
@@ -70,28 +84,57 @@ update(dt, canvas) {
     if (this.hitStun <= 0) {
       this.state = MOB_STATES.CHASE;
     }
-  } 
-  else if (this.state === MOB_STATES.CHASE) {
-    // 🏃 Normal movement
-    this.vx = Math.sign(this.vx) * this.speed;
-    super.update(dt);
   }
 
-  // Clamp knockback (safety)
-  this.knockbackVX = Math.max(
-    -this.maxKnockback,
-    Math.min(this.knockbackVX, this.maxKnockback)
-  );
+  else if (this.state === MOB_STATES.CHASE) {
+    const distance = Math.abs(this.x - player.x);
 
-  // Hit flash timer
-  if (this.hitFlashTimer > 0) {
-    this.hitFlashTimer -= dt;
+    // Enter attack
+    if (distance < this.attackRange && this.attackCooldown <= 0) {
+      this.state = MOB_STATES.ATTACK;
+      this.attackTimer = this.attackWindup;
+    } else {
+      this.vx = Math.sign(player.x - this.x) * this.speed;
+      super.update(dt);
+    }
+  }
+
+  else if (this.state === MOB_STATES.ATTACK) {
+    this.attackTimer -= dt;
+
+    if (this.attackTimer <= 0) {
+      this.performAttack(player);
+      this.attackCooldown = this.attackCooldownTime;
+      this.state = MOB_STATES.CHASE;
+    }
   }
 
   // Ground lock
   const groundY = canvas.height - WORLD.GROUND_HEIGHT;
   this.y = groundY - this.height;
 }
+
+performAttack(player) {
+  if (player.invincible) return;
+
+  const hitbox = {
+    x: this.x + (this.x < player.x ? this.width : -30),
+    y: this.y,
+    width: 30,
+    height: this.height,
+  };
+
+  const hit =
+    hitbox.x < player.x + player.width &&
+    hitbox.x + hitbox.width > player.x &&
+    hitbox.y < player.y + player.height &&
+    hitbox.y + hitbox.height > player.y;
+
+  if (hit) {
+    player.takeDamage(this.attackDamage);
+  }
+}
+
 
 
 

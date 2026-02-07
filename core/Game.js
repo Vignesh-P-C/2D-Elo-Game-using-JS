@@ -55,7 +55,7 @@ export class Game {
     const attackHitbox = this.player.getAttackHitbox();
 
     this.mobs.forEach((mob) => {
-      mob.update(dt, this.canvas);
+mob.update(dt, this.canvas, this.player);
 
       // 🗡 Player → Mob (melee)
       if (
@@ -71,15 +71,6 @@ mob.takeDamage(this.player.attackDamage, this.player.x);
       // Reset hit flag after attack ends
       if (!this.player.isAttacking) {
         mob.hitThisSwing = false;
-      }
-
-      // 💥 Mob → Player (contact damage)
-      if (
-        !mob.isDead &&
-        !this.player.invincible &&
-        isColliding(this.player, mob)
-      ) {
-        this.player.takeDamage(10);
       }
     });
 
