@@ -21,12 +21,27 @@ export class Game {
     this.mobs = [];
     this.spawnTimer = 0;
     this.spawnInterval = 2;
+
+    // 🧊 Hit-stop (freeze frames)
+    this.hitStopTimer = 0;
+    this.hitStopDuration = 0.06; // seconds (sweet spot)
+
   }
+
+triggerHitStop(duration = this.hitStopDuration) {
+  this.hitStopTimer = Math.max(this.hitStopTimer, duration);
+}
 
   // ========================
   // UPDATE
   // ========================
   update(dt) {
+    // 🧊 HIT-STOP FREEZE
+    if (this.hitStopTimer > 0) {
+      this.hitStopTimer -= dt;
+      return; // freeze entire game
+}
+
     // ☠ GAME OVER STATE
     if (this.stateManager.isGameOver()) {
       if (this.input.isKeyDown("KeyR")) {
@@ -83,6 +98,10 @@ export class Game {
       ) {
         mob.takeDamage(this.player.attackDamage, this.player.x);
         mob.hitThisSwing = true;
+
+        // 🧊 HIT-STOP ON SUCCESSFUL HIT
+        this.triggerHitStop(0.05);
+
       }
 
       // 👊 MOB → PLAYER
@@ -92,8 +111,12 @@ export class Game {
         !this.player.invincible &&
         isColliding(mob, this.player)
       ) {
-        this.player.takeHit(mob.x, mob.damage ?? 10);
-        mob.hasHitPlayer = true;
+this.player.takeHit(mob.x, mob.damage ?? 10);
+mob.hasHitPlayer = true;
+
+// 🧊 HIT-STOP ON PLAYER HIT
+this.triggerHitStop(0.08); // slightly longer feels heavier
+
       }
     });
 
