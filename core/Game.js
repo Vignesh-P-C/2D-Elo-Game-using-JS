@@ -4,34 +4,37 @@ import { InputManager } from "../input/InputManager.js";
 import { Player } from "../entities/Player.js";
 import { StateManager } from "./StateManager.js";
 
-
 export class Game {
   constructor(ctx) {
     this.ctx = ctx;
     this.canvas = ctx.canvas;
 
+    // 🎥 Camera
     this.cameraX = 0;
 
+    // 🎮 Core systems
     this.input = new InputManager(this.canvas);
     this.player = new Player(100, 400);
+    this.stateManager = new StateManager();
 
+    // 👾 Enemies
     this.mobs = [];
     this.spawnTimer = 0;
     this.spawnInterval = 2;
-    this.stateManager = new StateManager();
-
   }
 
+  // ========================
+  // UPDATE
+  // ========================
   update(dt) {
+    // ☠ GAME OVER STATE
     if (this.stateManager.isGameOver()) {
-  // Respawn input
-  if (this.input.isKeyDown("KeyR")) {
-    this.resetLevel();
-    this.player.health = this.player.maxHealth;
-    this.stateManager.setState("playing");
-  }
-  return;
-}
+      if (this.input.isKeyDown("KeyR")) {
+        this.resetLevel();
+        this.stateManager.setState("playing");
+      }
+      return;
+    }
 
     // ---- PLAYER ----
     this.player.update(dt, this.input, this.canvas);
@@ -58,60 +61,79 @@ export class Game {
       const y = this.canvas.height - WORLD.GROUND_HEIGHT - 40;
 
       const x = fromLeft
-        ? this.cameraX - 50
-        : this.cameraX + this.canvas.width + 50;
+        ? this.cameraX - 60
+        : this.cameraX + this.canvas.width + 60;
 
       const direction = fromLeft ? 1 : -1;
       this.mobs.push(new Mob(x, y, direction));
     }
 
-    // ---- UPDATE MOBS + COMBAT ----
+    // ---- COMBAT ----
     const attackHitbox = this.player.getAttackHitbox();
 
     this.mobs.forEach((mob) => {
-mob.update(dt, this.canvas, this.player);
+      mob.update(dt, this.canvas, this.player);
 
-      // 🗡 Player → Mob (melee)
+      // 🗡 PLAYER → MOB
       if (
-        attackHitbox !== null &&
+        attackHitbox &&
+        !mob.isDead &&
         !mob.hitThisSwing &&
-        !mob.isDead
+        isColliding(attackHitbox, mob)
       ) {
-        if (isColliding(attackHitbox, mob)) {
-mob.takeDamage(this.player.attackDamage, this.player.x);
-        }
+        mob.takeDamage(this.player.attackDamage, this.player.x);
+        mob.hitThisSwing = true;
       }
 
-      // Reset hit flag after attack ends
-      if (!this.player.isAttacking) {
-        mob.hitThisSwing = false;
+      // 👊 MOB → PLAYER
+      if (
+        !mob.isDead &&
+        !mob.hasHitPlayer &&
+        !this.player.invincible &&
+        isColliding(mob, this.player)
+      ) {
+        this.player.takeHit(mob.x, mob.damage ?? 10);
+        mob.hasHitPlayer = true;
       }
     });
 
-    // Remove dead mobs
-    this.mobs = this.mobs.filter((mob) => !mob.isDead);
-
-    // ---- DEATH CHECK ----
-    if (this.player.y > this.canvas.height + WORLD.DEATH_Y_OFFSET) {
-      this.resetLevel();
+    // Reset mob hit flags safely
+    if (!this.player.isAttacking) {
+      this.mobs.forEach((mob) => (mob.hitThisSwing = false));
     }
 
-if (this.player.health <= 0) {
-  this.stateManager.setState("game_over");
-}
+    if (!this.player.invincible) {
+      this.mobs.forEach((mob) => (mob.hasHitPlayer = false));
+    }
 
+    // ---- CLEANUP ----
+    this.mobs = this.mobs.filter((mob) => !mob.isDead);
+
+    // ---- FALL DEATH ----
+    if (this.player.y > this.canvas.height + WORLD.DEATH_Y_OFFSET) {
+      this.stateManager.setState("game_over");
+    }
+
+    // ---- HEALTH DEATH ----
+    if (this.player.health <= 0) {
+      this.stateManager.setState("game_over");
+    }
   }
 
+  // ========================
+  // RENDER
+  // ========================
   render() {
-    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    const ctx = this.ctx;
+    ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
     // ===== WORLD SPACE =====
-    this.ctx.save();
-    this.ctx.translate(-this.cameraX, 0);
+    ctx.save();
+    ctx.translate(-this.cameraX, 0);
 
     // Ground
-    this.ctx.fillStyle = "#555";
-    this.ctx.fillRect(
+    ctx.fillStyle = "#555";
+    ctx.fillRect(
       0,
       this.canvas.height - WORLD.GROUND_HEIGHT,
       WORLD.WIDTH,
@@ -119,84 +141,97 @@ if (this.player.health <= 0) {
     );
 
     // Player
-    this.player.draw(this.ctx);
+    this.player.draw(ctx);
 
     // Mobs
-    this.mobs.forEach((mob) => mob.draw(this.ctx));
+    this.mobs.forEach((mob) => mob.draw(ctx));
 
-    // 🟥 SAFE DEBUG: attack hitbox
+    // Debug: attack hitbox
     const hb = this.player.getAttackHitbox();
     if (hb) {
-      this.ctx.fillStyle = "rgba(255, 0, 0, 0.4)";
-      this.ctx.fillRect(hb.x, hb.y, hb.width, hb.height);
+      ctx.fillStyle = "rgba(255,0,0,0.4)";
+      ctx.fillRect(hb.x, hb.y, hb.width, hb.height);
     }
 
-    this.ctx.restore();
+    ctx.restore();
 
     // ===== UI =====
-    const barWidth = 200;
-    const barHeight = 16;
-    const healthRatio = this.player.health / this.player.maxHealth;
-
-    this.ctx.fillStyle = "#333";
-    this.ctx.fillRect(20, 90, barWidth, barHeight);
-
-    this.ctx.fillStyle = "#E53935";
-    this.ctx.fillRect(20, 90, barWidth * healthRatio, barHeight);
-
-    this.ctx.strokeStyle = "white";
-    this.ctx.strokeRect(20, 90, barWidth, barHeight);
-
-    this.ctx.fillStyle = "white";
-    this.ctx.font = "20px Arial";
-    this.ctx.fillText("Game running", 20, 30);
-    this.ctx.fillText(`Mobs: ${this.mobs.length}`, 20, 60);
+    this.drawUI();
 
     if (this.stateManager.isGameOver()) {
-  this.drawDeathScreen();
-}
-
+      this.drawDeathScreen();
+    }
   }
-drawDeathScreen() {
-  const ctx = this.ctx;
-  const w = this.canvas.width;
-  const h = this.canvas.height;
 
-  // Dark overlay
-  ctx.fillStyle = "rgba(0, 0, 0, 0.75)";
-  ctx.fillRect(0, 0, w, h);
+  // ========================
+  // UI
+  // ========================
+  drawUI() {
+    const ctx = this.ctx;
 
-  // YOU DIED
-  ctx.fillStyle = "#ff3333";
-  ctx.font = "bold 64px Arial";
-  ctx.textAlign = "center";
-  ctx.fillText("YOU DIED", w / 2, h / 2 - 40);
+    const barWidth = 200;
+    const barHeight = 16;
+    const ratio = this.player.health / this.player.maxHealth;
 
-  // Optional emoji flair
-  ctx.font = "32px Arial";
-  ctx.fillText("💀", w / 2, h / 2);
+    ctx.fillStyle = "#333";
+    ctx.fillRect(20, 90, barWidth, barHeight);
 
-  // Respawn hint
-  ctx.fillStyle = "white";
-  ctx.font = "20px Arial";
-  ctx.fillText("Press R to Respawn", w / 2, h / 2 + 60);
+    ctx.fillStyle = "#E53935";
+    ctx.fillRect(20, 90, barWidth * ratio, barHeight);
 
-  ctx.textAlign = "left";
-}
+    ctx.strokeStyle = "white";
+    ctx.strokeRect(20, 90, barWidth, barHeight);
 
+    ctx.fillStyle = "white";
+    ctx.font = "20px Arial";
+    ctx.fillText("Game running", 20, 30);
+    ctx.fillText(`Mobs: ${this.mobs.length}`, 20, 60);
+  }
 
+  // ========================
+  // DEATH SCREEN
+  // ========================
+  drawDeathScreen() {
+    const ctx = this.ctx;
+    const w = this.canvas.width;
+    const h = this.canvas.height;
+
+    ctx.fillStyle = "rgba(0,0,0,0.75)";
+    ctx.fillRect(0, 0, w, h);
+
+    ctx.fillStyle = "#ff3333";
+    ctx.font = "bold 64px Arial";
+    ctx.textAlign = "center";
+    ctx.fillText("YOU DIED", w / 2, h / 2 - 40);
+
+    ctx.font = "32px Arial";
+    ctx.fillText("💀", w / 2, h / 2);
+
+    ctx.fillStyle = "white";
+    ctx.font = "20px Arial";
+    ctx.fillText("Press R to Respawn", w / 2, h / 2 + 60);
+
+    ctx.textAlign = "left";
+  }
+
+  // ========================
+  // RESET
+  // ========================
   resetLevel() {
     this.player.x = 100;
     this.player.y = 0;
     this.player.vx = 0;
     this.player.vy = 0;
+    this.player.health = this.player.maxHealth;
+
     this.cameraX = 0;
     this.mobs = [];
   }
-  
 }
 
-// ✅ SAFE collision (prevents freezes forever)
+// ========================
+// COLLISION
+// ========================
 function isColliding(a, b) {
   if (!a || !b) return false;
 
