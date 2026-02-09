@@ -27,6 +27,7 @@ const MOB_CONFIG = {
 const MOB_COLORS = {
   NORMAL: "#E53935",
   HIT_FLASH: "#FFCDD2",
+  TELEGRAPH: "rgba(255, 235, 59, 0.9)", // yellow warning
   HEART_EMPTY: "#555",
   HEART_FILLED: "red",
 };
@@ -35,16 +36,19 @@ export class Mob extends Entity {
   constructor(x, y, direction = -1) {
     super(x, y, 40, 40);
 
+    // Movement
     this.speed = MOB_CONFIG.SPEED;
     this.vx = this.speed * direction;
 
+    // Health
     this.maxHealth = MOB_CONFIG.MAX_HEALTH;
     this.health = this.maxHealth;
 
+    // State
     this.state = MOB_STATES.CHASE;
     this.isDead = false;
 
-    // Combat response
+    // Hit response
     this.hitThisSwing = false;
     this.hitFlashTimer = 0;
     this.hitStun = 0;
@@ -57,6 +61,9 @@ export class Mob extends Entity {
     this.attackCooldownTime = MOB_CONFIG.ATTACK_COOLDOWN;
     this.attackWindup = MOB_CONFIG.ATTACK_WINDUP;
     this.attackTimer = 0;
+
+    // Telegraph
+    this.isWindingUp = false;
 
     // Flags used by Game.js
     this.hasHitPlayer = false;
@@ -78,6 +85,8 @@ export class Mob extends Entity {
     const dir = this.x < attackerX ? -1 : 1;
     this.knockbackVX = dir * MOB_CONFIG.MAX_KNOCKBACK;
 
+    this.isWindingUp = false;
+
     if (this.health <= 0) this.die();
   }
 
@@ -85,6 +94,7 @@ export class Mob extends Entity {
     this.isDead = true;
     this.state = MOB_STATES.DEAD;
     this.vx = 0;
+    this.isWindingUp = false;
   }
 
   // ========================
@@ -141,6 +151,7 @@ export class Mob extends Entity {
     this.attackTimer -= dt;
 
     if (this.attackTimer <= 0) {
+      this.isWindingUp = false;
       this.attackCooldown = this.attackCooldownTime;
       this.state = MOB_STATES.CHASE;
     }
@@ -150,6 +161,7 @@ export class Mob extends Entity {
     this.state = MOB_STATES.ATTACK;
     this.attackTimer = this.attackWindup;
     this.vx = 0;
+    this.isWindingUp = true;
   }
 
   // ========================
@@ -173,7 +185,26 @@ export class Mob extends Entity {
     this.y = groundY - this.height;
   }
 
+  // ========================
+  // DRAW
+  // ========================
   draw(ctx) {
+    // Telegraph ring
+    if (this.isWindingUp) {
+      ctx.strokeStyle = MOB_COLORS.TELEGRAPH;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(
+        this.x + this.width / 2,
+        this.y + this.height / 2,
+        28,
+        0,
+        Math.PI * 2
+      );
+      ctx.stroke();
+    }
+
+    // Body
     ctx.fillStyle =
       this.hitFlashTimer > 0 ? MOB_COLORS.HIT_FLASH : MOB_COLORS.NORMAL;
 
