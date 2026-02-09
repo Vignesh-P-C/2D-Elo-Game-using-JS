@@ -12,7 +12,7 @@ export class Player extends Entity {
     // 🛡 Invincibility
     this.invincible = false;
     this.invincibleTimer = 0;
-    this.invincibleDuration = 0.6; // seconds
+    this.invincibleDuration = 0.6;
 
     // 🏃 Movement
     this.speed = 250;
@@ -23,26 +23,31 @@ export class Player extends Entity {
     this.jumpForce = 650;
     this.isGrounded = false;
 
-    // 🗡 Melee
+    // 🗡 Attack core
     this.isAttacking = false;
     this.attackTimer = 0;
     this.attackDuration = 0.15;
     this.attackCooldown = 0;
     this.attackCooldownDuration = 0.25;
+    this.attackPhase = "none";
+    this.animTimer = 0;
+
+    // 🥊 Combo system
+    this.comboStep = 0;
+    this.comboTimer = 0;
+    this.comboWindow = 0.35;
     this.attackDamage = 20;
 
-    // 🎞 Animation
-    this.animState = "idle";
-    this.animTimer = 0;
-    this.attackPhase = "none";
-
-    // 🧨 Combat State
+    // 🧨 Combat state
     this.isStunned = false;
     this.stunTimer = 0;
     this.stunDuration = 0.25;
 
     this.knockbackX = 0;
     this.knockbackY = 0;
+
+    // 🎞 Animation
+    this.animState = "idle";
   }
 
   // ========================
@@ -54,7 +59,6 @@ export class Player extends Entity {
     this.health -= damage;
 
     const dir = this.x < sourceX ? -1 : 1;
-
     this.knockbackX = 420 * dir;
     this.knockbackY = -420;
 
@@ -63,6 +67,10 @@ export class Player extends Entity {
 
     this.invincible = true;
     this.invincibleTimer = this.invincibleDuration;
+
+    // Reset combo on getting hit
+    this.comboStep = 0;
+    this.comboTimer = 0;
   }
 
   // ========================
@@ -88,17 +96,34 @@ export class Player extends Entity {
       this.isGrounded = false;
     }
 
+    // 🥊 Combo attack input
     if (
       input.isAttacking() &&
       !this.isAttacking &&
       this.attackCooldown <= 0
     ) {
-      this.isAttacking = true;
-      this.attackTimer = this.attackDuration;
-      this.attackPhase = "windup";
-      this.animState = "attack";
-      this.animTimer = 0;
+      this.startAttack();
     }
+  }
+
+  // ========================
+  // ATTACK START
+  // ========================
+  startAttack() {
+    this.isAttacking = true;
+    this.attackTimer = this.attackDuration;
+    this.attackPhase = "windup";
+    this.animTimer = 0;
+    this.animState = "attack";
+
+    this.comboStep++;
+    this.comboTimer = this.comboWindow;
+
+    // Scale damage per combo hit
+    this.attackDamage =
+      this.comboStep === 1 ? 20 :
+      this.comboStep === 2 ? 30 :
+      45;
   }
 
   // ========================
@@ -108,7 +133,6 @@ export class Player extends Entity {
     // 🧨 STUN
     if (this.isStunned) {
       this.stunTimer -= dt;
-
       this.vx = this.knockbackX;
       this.vy = this.knockbackY;
 
@@ -127,7 +151,14 @@ export class Player extends Entity {
       }
     }
 
-    // 🗡 ATTACK
+    // 🥊 COMBO TIMER
+    if (this.comboTimer > 0) {
+      this.comboTimer -= dt;
+    } else {
+      this.comboStep = 0;
+    }
+
+    // 🗡 ATTACK STATE
     if (this.isAttacking) {
       this.attackTimer -= dt;
       this.animTimer += dt;
@@ -147,6 +178,12 @@ export class Player extends Entity {
         this.attackCooldown = this.attackCooldownDuration;
         this.attackPhase = "none";
         this.animState = "idle";
+
+        // End combo after third hit
+        if (this.comboStep >= 3) {
+          this.comboStep = 0;
+          this.comboTimer = 0;
+        }
       }
     }
 
@@ -202,7 +239,6 @@ export class Player extends Entity {
     }
 
     ctx.font = "32px Arial";
-
     ctx.translate(this.x + this.width / 2, this.y + this.height / 2);
     ctx.scale(this.facing, 1);
     ctx.fillText("🥷", -16, 16);
