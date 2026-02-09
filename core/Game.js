@@ -22,27 +22,43 @@ export class Game {
     this.spawnTimer = 0;
     this.spawnInterval = 2;
 
-    // 🧊 Hit-stop (freeze frames)
+    // 🧊 Hit-stop
     this.hitStopTimer = 0;
-    this.hitStopDuration = 0.06; // seconds (sweet spot)
+    this.hitStopDuration = 0.06;
 
+    // 🎥 Screen Shake
+    this.shakeTime = 0;
+    this.shakeIntensity = 0;
   }
 
-triggerHitStop(duration = this.hitStopDuration) {
-  this.hitStopTimer = Math.max(this.hitStopTimer, duration);
-}
+  // ========================
+  // EFFECT TRIGGERS
+  // ========================
+  triggerHitStop(duration = this.hitStopDuration) {
+    this.hitStopTimer = Math.max(this.hitStopTimer, duration);
+  }
+
+  triggerScreenShake(intensity = 6, duration = 0.12) {
+    this.shakeIntensity = intensity;
+    this.shakeTime = duration;
+  }
 
   // ========================
   // UPDATE
   // ========================
   update(dt) {
+    // 🎥 Update shake EVEN during hit-stop
+    if (this.shakeTime > 0) {
+      this.shakeTime -= dt;
+    }
+
     // 🧊 HIT-STOP FREEZE
     if (this.hitStopTimer > 0) {
       this.hitStopTimer -= dt;
-      return; // freeze entire game
-}
+      return;
+    }
 
-    // ☠ GAME OVER STATE
+    // ☠ GAME OVER
     if (this.stateManager.isGameOver()) {
       if (this.input.isKeyDown("KeyR")) {
         this.resetLevel();
@@ -74,7 +90,6 @@ triggerHitStop(duration = this.hitStopDuration) {
 
       const fromLeft = Math.random() < 0.5;
       const y = this.canvas.height - WORLD.GROUND_HEIGHT - 40;
-
       const x = fromLeft
         ? this.cameraX - 60
         : this.cameraX + this.canvas.width + 60;
@@ -99,9 +114,8 @@ triggerHitStop(duration = this.hitStopDuration) {
         mob.takeDamage(this.player.attackDamage, this.player.x);
         mob.hitThisSwing = true;
 
-        // 🧊 HIT-STOP ON SUCCESSFUL HIT
         this.triggerHitStop(0.05);
-
+        this.triggerScreenShake(6, 0.1);
       }
 
       // 👊 MOB → PLAYER
@@ -111,16 +125,15 @@ triggerHitStop(duration = this.hitStopDuration) {
         !this.player.invincible &&
         isColliding(mob, this.player)
       ) {
-this.player.takeHit(mob.x, mob.damage ?? 10);
-mob.hasHitPlayer = true;
+        this.player.takeHit(mob.x, mob.damage ?? 10);
+        mob.hasHitPlayer = true;
 
-// 🧊 HIT-STOP ON PLAYER HIT
-this.triggerHitStop(0.08); // slightly longer feels heavier
-
+        this.triggerHitStop(0.08);
+        this.triggerScreenShake(10, 0.15);
       }
     });
 
-    // Reset mob hit flags safely
+    // Reset mob flags
     if (!this.player.isAttacking) {
       this.mobs.forEach((mob) => (mob.hitThisSwing = false));
     }
@@ -132,13 +145,11 @@ this.triggerHitStop(0.08); // slightly longer feels heavier
     // ---- CLEANUP ----
     this.mobs = this.mobs.filter((mob) => !mob.isDead);
 
-    // ---- FALL DEATH ----
-    if (this.player.y > this.canvas.height + WORLD.DEATH_Y_OFFSET) {
-      this.stateManager.setState("game_over");
-    }
-
-    // ---- HEALTH DEATH ----
-    if (this.player.health <= 0) {
+    // ---- DEATH CHECKS ----
+    if (
+      this.player.y > this.canvas.height + WORLD.DEATH_Y_OFFSET ||
+      this.player.health <= 0
+    ) {
       this.stateManager.setState("game_over");
     }
   }
@@ -150,9 +161,17 @@ this.triggerHitStop(0.08); // slightly longer feels heavier
     const ctx = this.ctx;
     ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
+    // 🎥 Shake offset
+    let shakeX = 0;
+    let shakeY = 0;
+    if (this.shakeTime > 0) {
+      shakeX = (Math.random() - 0.5) * this.shakeIntensity;
+      shakeY = (Math.random() - 0.5) * this.shakeIntensity;
+    }
+
     // ===== WORLD SPACE =====
     ctx.save();
-    ctx.translate(-this.cameraX, 0);
+    ctx.translate(-this.cameraX + shakeX, shakeY);
 
     // Ground
     ctx.fillStyle = "#555";
@@ -163,13 +182,10 @@ this.triggerHitStop(0.08); // slightly longer feels heavier
       WORLD.GROUND_HEIGHT
     );
 
-    // Player
     this.player.draw(ctx);
-
-    // Mobs
     this.mobs.forEach((mob) => mob.draw(ctx));
 
-    // Debug: attack hitbox
+    // Debug hitbox
     const hb = this.player.getAttackHitbox();
     if (hb) {
       ctx.fillStyle = "rgba(255,0,0,0.4)";
@@ -178,7 +194,6 @@ this.triggerHitStop(0.08); // slightly longer feels heavier
 
     ctx.restore();
 
-    // ===== UI =====
     this.drawUI();
 
     if (this.stateManager.isGameOver()) {
@@ -191,19 +206,16 @@ this.triggerHitStop(0.08); // slightly longer feels heavier
   // ========================
   drawUI() {
     const ctx = this.ctx;
-
-    const barWidth = 200;
-    const barHeight = 16;
     const ratio = this.player.health / this.player.maxHealth;
 
     ctx.fillStyle = "#333";
-    ctx.fillRect(20, 90, barWidth, barHeight);
+    ctx.fillRect(20, 90, 200, 16);
 
     ctx.fillStyle = "#E53935";
-    ctx.fillRect(20, 90, barWidth * ratio, barHeight);
+    ctx.fillRect(20, 90, 200 * ratio, 16);
 
     ctx.strokeStyle = "white";
-    ctx.strokeRect(20, 90, barWidth, barHeight);
+    ctx.strokeRect(20, 90, 200, 16);
 
     ctx.fillStyle = "white";
     ctx.font = "20px Arial";
@@ -237,9 +249,6 @@ this.triggerHitStop(0.08); // slightly longer feels heavier
     ctx.textAlign = "left";
   }
 
-  // ========================
-  // RESET
-  // ========================
   resetLevel() {
     this.player.x = 100;
     this.player.y = 0;
