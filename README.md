@@ -8,7 +8,7 @@ The project is developed incrementally with a strong focus on **game feel, comba
 
 ---
 
-## 🎮 Current Gameplay Features
+## 🎮 Current Gameplay Features:
 
 - Player movement, jumping, and camera follow
 - Melee combat system featuring:
