@@ -228,7 +228,7 @@ export class HealingOrb {
     ctx.moveTo(this.x - crossSize, this.y);
     ctx.lineTo(this.x + crossSize, this.y);
     ctx.stroke();
-    
+    //commit test
     ctx.beginPath();
     ctx.moveTo(this.x, this.y - crossSize);
     ctx.lineTo(this.x, this.y + crossSize);
