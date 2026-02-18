@@ -1,5 +1,5 @@
 # 2D ELO Game
-**Version:** v0.5.0
+**Version:** v0.6.0
 
 A browser-based **2D side-scrolling action game** built with **JavaScript and HTML5 Canvas**.  
 The player engages in real-time melee combat against enemies, gains progression through combat, and must survive increasingly challenging encounters.
