@@ -143,15 +143,13 @@ Select Open with Live Server
 
 🚧 In Progress / Planned
 ```
-- Boss enemies
-
-- Player knockback and advanced combat reactions
-
-- Scoring / ELO progression system
-
+- Projectile-based boss phases
+- Sprite sheet animation system
+- Sound effects and background music
 - Pause menu
+- Save / load progression
+- Performance optimization pass
+- TypeScript migration for type safety
+- Mini-engine extraction for reuse in future games
 
-- Visual polish (sprites, animations, effects)
-
-- Sound effects and music
 ```
