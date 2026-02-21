@@ -1,20 +1,16 @@
-import { Game } from "./core/Game.js";
+import { Game } from './game/Game.js';
+import { preload } from './utils/AssetLoader.js';
 
-const canvas = document.getElementById("gameCanvas");
-const ctx = canvas.getContext("2d");
+const canvas = document.getElementById('gameCanvas');
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
 
-const game = new Game(ctx);
+window.addEventListener('resize', () => {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+});
 
-let lastTime = 0;
-
-function gameLoop(time) {
-  const delta = (time - lastTime) / 1000;
-  lastTime = time;
-
-  game.update(delta);
-  game.render();
-
-  requestAnimationFrame(gameLoop);
-}
-
-requestAnimationFrame(gameLoop);
+preload().then(() => {
+  const game = new Game(canvas);
+  game.start();
+});
