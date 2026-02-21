@@ -80,11 +80,26 @@ The project is developed incrementally with a strong focus on **combat responsiv
 
 ## 🧠 Architecture Highlights
 
-- Modular ES6 structure using `import/export`
-- Central game loop with clear `update` and `render` separation
-- State-driven enemy AI system
-- Global game state management via a State Manager
-- Scalable systems designed to support bosses and advanced mechanics later
+- **Modular ES6 structure** using `import/export`
+- Top-level `Game` **orchestrator** controlling:
+  - Central game loop
+  - ELO state
+  - Subsystem wiring
+- Fully separated subsystems:
+  - `LevelManager`
+  - `CollisionSystem`
+  - `Camera`
+  - `InputManager`
+  - `HUD`
+- Centralized **AABB collision detection** (entities do not self-resolve collisions)
+- **State-driven AI system** for mobs and boss
+- Centralized tunable configuration via **`Constants.js`**
+- **Frame-rate independent movement** using delta-time
+- Scalable structure designed for:
+  - Projectiles
+  - Advanced boss phases
+  - Sprite animation pipeline
+  - Future TypeScript migration
 
 ---
 
