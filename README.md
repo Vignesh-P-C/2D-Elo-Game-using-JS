@@ -1,32 +1,80 @@
 # 2D ELO Game
-**Version:** v0.6.0
+**Version:** v1.0.0
 
-A browser-based **2D side-scrolling action game** built with **JavaScript and HTML5 Canvas**.  
-The player engages in real-time melee combat against enemies, gains progression through combat, and must survive increasingly challenging encounters.
+A browser-based **2D side-scrolling combat engine** built with **JavaScript (ES6 Modules)** and **HTML5 Canvas**.
+The player engages in **responsive melee combat**, defeats **scaled enemies and bosses**, gains **ELO progression**, and advances through increasingly difficult levels.
 
-The project is developed incrementally with a strong focus on **game feel, combat clarity, and clean architecture**.
+The project is developed incrementally with a strong focus on **combat responsiveness, modular architecture, scalability,** and **clean system design**.
 
 ---
 
 ## 🎮 Current Gameplay Features:
+- **Player movement system** featuring:
+  - Friction-based horizontal control
+  - Jump buffering
+  - Coyote time
 
-- Player movement, jumping, and camera follow
-- Melee combat system featuring:
+- **Advanced melee combat** system:
   - Attack wind-up and cooldown
-  - Directional knockback
-  - Hit stun for enemies
-- Enemy AI with state-based behavior:
+  - Directional hitboxes
+  - Hit pause feedback
+  - Enemy hit stun
+
+- **Dash mechanic**:
+  - Attack cancel window
+  - Cooldown system
+  - Level-based invulnerability unlock
+
+- **Invincibility frames (i-frames)** after taking damage
+
+- **Knockback physics** for both player and enemies
+
+- **Healing Orb** system:
+  - Spawned every 4 successful hits
+  - **Overheal** system with decay
+
+- **Enemy AI** with state-based behavior:
+  - Idle patrol
   - Chase
   - Attack
   - Stunned
   - Dead
-- Contact-free enemy attacks (intentional attack logic)
-- Player invincibility frames after taking damage
-- Smooth percentage-based enemy health UI
-- **Game Over / Respawn system**
-  - Minecraft-style “YOU DIED” screen
-  - Game freezes on death
-  - Press `R` to respawn and continue
+
+- **Boss system**:
+  - Scaled stats per level
+  - **Phase 2 trigger at 50% HP**
+  - **Charge attack behavior**
+  - Warning flash effects
+  - Enhanced ELO reward
+
+- **Level system**:
+  - Procedural platform generation
+  - Scaled enemy waves
+  - Boss spawn after wave clear
+  - Automatic level transitions
+  
+- **ELO progression** system:
+  - Starting ELO: 1000
+  - +10 per mob
+  - +100 per boss
+  - Animated segmented ELO bar
+
+- **Camera system**:
+  - Smooth lerp-based follow
+  - World clamping
+  - Screen shake on major combat events
+
+- **HUD system**:
+  - Animated HP bar
+  - Animated ELO bar
+  - Level indicator
+  - Center-screen event messages
+
+
+- **Game Over** system:
+  - Screen overlay
+  - Game loop freeze on death
+
 
 ---
 
