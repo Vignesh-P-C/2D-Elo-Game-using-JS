@@ -188,4 +188,4 @@ Install the Live Server extension → right-click `index.html` → Open with Liv
 <!-- PLACEHOLDER: Add your GitHub, LinkedIn, portfolio link       -->
 <!-- ============================================================ -->
 
-**[Your Name]** — [[GitHub]](#) · [[LinkedIn]](#) · [[Portfolio]](#)
+**[Vignesh P C]** — [[GitHub]](https://github.com/Vignesh-P-C) · [[LinkedIn]](https://www.linkedin.com/in/vignesh-p-c/)
