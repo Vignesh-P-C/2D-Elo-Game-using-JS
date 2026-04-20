@@ -29,6 +29,9 @@ export class Game {
     // --- ELO (game-level state) ---
     this.elo = ELO_START;
 
+    // --- Double jump unlock state ---
+    this.doubleJumpUnlocked = false;
+
     // --- Subsystems ---
     this.input  = new InputManager();
     this.camera = new Camera(canvas.width, canvas.height);
@@ -43,6 +46,7 @@ export class Game {
       player:          this.player,
       onLevelComplete: (nextLevel) => this._loadLevel(nextLevel),
       onEloGain:       (amount)    => this._addElo(amount),
+      onDoubleJumpUnlock: ()       => this._unlockDoubleJump(),
     });
 
     // CollisionSystem reference — rebuilt each level
@@ -100,6 +104,16 @@ export class Game {
 
   _addElo(amount) {
     this.elo += amount;
+  }
+
+  _unlockDoubleJump() {
+    if (this.doubleJumpUnlocked) return; // Already unlocked
+    
+    this.doubleJumpUnlocked = true;
+    this.player.unlockDoubleJump();
+    
+    // Show unlock message using LevelManager's message system
+    this.levelManager._showMessage('DOUBLE JUMP UNLOCKED!');
   }
 
   _handleHitEvent(event) {
