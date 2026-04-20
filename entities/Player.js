@@ -84,6 +84,10 @@ export class Player {
 
     // --- NEW: Overheal decay ---
     this.overhealDecayTimer = 0;
+    
+    // --- NEW: Double jump ---
+    this.maxJumps = 1;
+    this.jumpsRemaining = 1;
   }
 
   // -------------------------------------------------------
@@ -95,6 +99,7 @@ export class Player {
     this.onGround = true;
     if (this.vy > 0) this.vy = 0;
     this.coyoteTimer = COYOTE_TIME; // Reset coyote time when landing
+    this.jumpsRemaining = this.maxJumps; // Reset jumps when landing
   }
 
   /**
@@ -157,6 +162,14 @@ export class Player {
       return true;
     }
     return false;
+  }
+
+  /**
+   * Unlock double jump ability.
+   */
+  unlockDoubleJump() {
+    this.maxJumps = 2;
+    this.jumpsRemaining = this.maxJumps;
   }
 
   // -------------------------------------------------------
@@ -262,13 +275,15 @@ export class Player {
       this.jumpBufferTimer = JUMP_BUFFER_TIME;
     }
 
-    // --- Jump (with coyote time and buffer) ---
-    const canJump = (this.onGround || this.coyoteTimer > 0) && 
+    // --- Jump (with double jump support) ---
+    // Can jump if: have jumps remaining AND not in certain states
+    const canJump = this.jumpsRemaining > 0 && 
                     this.state !== STATE.ATTACKING && 
                     this.state !== STATE.DASHING;
     
     if (this.jumpBufferTimer > 0 && canJump) {
       this.vy = PLAYER_JUMP_FORCE;
+      this.jumpsRemaining--;
       this.onGround = false;
       this.coyoteTimer = 0;
       this.jumpBufferTimer = 0;

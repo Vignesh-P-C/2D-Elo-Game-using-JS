@@ -117,10 +117,10 @@ export class CollisionSystem {
           mob.takeHit(this._playerDamage(), this.player.centerX);
           mob._hitThisSwing = true;
           
-          // Register successful hit
+          // Register successful hit (but only spawn orb for non-speeders)
           if (prevHp > 0 && mob.hp < prevHp) {
             const shouldSpawnOrb = this.player.registerSuccessfulHit();
-            if (shouldSpawnOrb) {
+            if (shouldSpawnOrb && mob.type !== 'speeder') {
               this.onSpawnOrb(mob.centerX, mob.centerY);
             }
             // Trigger hit pause

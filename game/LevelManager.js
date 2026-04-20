@@ -24,12 +24,14 @@ export class LevelManager {
    * @param {object}   opts.player
    * @param {Function} opts.onLevelComplete  Called when boss is defeated
    * @param {Function} opts.onEloGain        Called with (amount)
+   * @param {Function} opts.onDoubleJumpUnlock  Called when Level 3 is completed
    */
-  constructor({ canvas, player, onLevelComplete, onEloGain }) {
+  constructor({ canvas, player, onLevelComplete, onEloGain, onDoubleJumpUnlock }) {
     this.canvas          = canvas;
     this.player          = player;
     this.onLevelComplete = onLevelComplete;
     this.onEloGain       = onEloGain;
+    this.onDoubleJumpUnlock = onDoubleJumpUnlock || (() => {});
 
     this.currentLevel = 1;
 
@@ -194,7 +196,26 @@ export class LevelManager {
     for (let i = 0; i < count; i++) {
       const x = 400 + i * step + randFloat(0, step * 0.4);
       const y = groundY - 55 - 2; // just above ground
-      mobs.push(new Mob(x, y, level));
+      
+      // Determine enemy type based on level
+      let type = 'normal';
+      
+      if (level >= 4) {
+        // Level 4+: Mix of normal, speeders, and shielders
+        const roll = Math.random();
+        if (roll < 0.25) {
+          type = 'shielder';
+        } else if (roll < 0.5) {
+          type = 'speeder';
+        }
+      } else if (level >= 3) {
+        // Level 3: Mix of normal and speeders
+        if (Math.random() < 0.3) {
+          type = 'speeder';
+        }
+      }
+      
+      mobs.push(new Mob(x, y, level, type));
     }
 
     return mobs;
@@ -216,6 +237,11 @@ export class LevelManager {
     
     // NEW: Heal player on boss defeat
     this.player.heal(BOSS_DEFEAT_HEAL);
+    
+    // NEW: Unlock double jump after Level 3
+    if (this.currentLevel === 3) {
+      this.onDoubleJumpUnlock();
+    }
     
     this._showMessage(`Level ${this.currentLevel} Complete!`);
   }

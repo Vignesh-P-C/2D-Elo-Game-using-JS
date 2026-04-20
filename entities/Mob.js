@@ -9,9 +9,13 @@ import {
   MOB_STUN_DURATION, MOB_DEATH_DURATION,
   MOB_KNOCKBACK_X, MOB_KNOCKBACK_Y,
   MOB_ELO_VALUE,
+  SPEEDER_SPEED_MULTIPLIER, SPEEDER_HP_MULTIPLIER,
+  SHIELDER_WIDTH, SHIELDER_HEIGHT,
   GRAVITY,
   STATE,
   COLOR_MOB, COLOR_MOB_STUNNED, COLOR_MOB_OUTLINE,
+  COLOR_SPEEDER, COLOR_SPEEDER_OUTLINE,
+  COLOR_SHIELDER, COLOR_SHIELDER_OUTLINE, COLOR_SHIELDER_SHIELD,
 } from '../utils/Constants.js';
 import { clamp } from '../utils/MathUtils.js';
 
@@ -20,12 +24,22 @@ export class Mob {
    * @param {number} x       Spawn world-space X
    * @param {number} y       Spawn world-space Y
    * @param {number} level   Current game level (for scaling)
+   * @param {string} type    Enemy type: 'normal', 'speeder', or 'shielder'
    */
-  constructor(x, y, level = 1) {
+  constructor(x, y, level = 1, type = 'normal') {
+    this.type = type;  // Store enemy type
+    
     this.x = x;
     this.y = y;
-    this.width  = MOB_WIDTH;
-    this.height = MOB_HEIGHT;
+    
+    // Dimensions based on type
+    if (type === 'shielder') {
+      this.width  = SHIELDER_WIDTH;
+      this.height = SHIELDER_HEIGHT;
+    } else {
+      this.width  = MOB_WIDTH;
+      this.height = MOB_HEIGHT;
+    }
 
     this.vx = 0;
     this.vy = 0;
@@ -33,10 +47,19 @@ export class Mob {
     this.onGround = false;
     this.facing   = -1; // face left initially
 
-    // Scaled stats
-    this.maxHp = 40 + (level - 1) * 15;
-    this.hp    = this.maxHp;
-    this.speed = 90 + (level - 1) * 10;
+    // Scaled stats with type multipliers
+    const baseHp = 40 + (level - 1) * 15;
+    const baseSpeed = 90 + (level - 1) * 10;
+    
+    if (type === 'speeder') {
+      this.maxHp = baseHp * SPEEDER_HP_MULTIPLIER;
+      this.speed = baseSpeed * SPEEDER_SPEED_MULTIPLIER;
+    } else {
+      this.maxHp = baseHp;
+      this.speed = baseSpeed;
+    }
+    
+    this.hp = this.maxHp;
 
     this.damage         = MOB_DAMAGE;
     this.attackCooldown = MOB_ATTACK_COOLDOWN;
@@ -65,6 +88,9 @@ export class Mob {
     // Death animation state
     this._deathAlpha  = 1;
     this._deathScaleY = 1;
+    
+    // Shielder-specific: blocking state
+    this.isBlocking = false;
   }
 
   // -------------------------------------------------------
@@ -82,6 +108,15 @@ export class Mob {
   takeHit(damage, sourceX) {
     if (this.state === STATE.DEAD) return;
 
+    // Shielder blocking logic
+    if (this.type === 'shielder' && this.isBlocking) {
+      // Blocked! No damage, but still apply knockback
+      const dir = this.x + this.width / 2 > sourceX ? 1 : -1;
+      this.vx = dir * MOB_KNOCKBACK_X * 0.3; // Reduced knockback when blocking
+      this.vy = MOB_KNOCKBACK_Y * 0.3;
+      return;
+    }
+
     this.hp = Math.max(0, this.hp - damage);
 
     // Knockback direction: away from attacker
@@ -95,6 +130,7 @@ export class Mob {
       this.state      = STATE.STUNNED;
       this.stunTimer  = MOB_STUN_DURATION;
       this.attackHitbox = null;
+      this.isBlocking = false; // Drop block when stunned
     }
   }
 
@@ -174,6 +210,7 @@ export class Mob {
   _runAI(dt, player) {
     if (!player || !player.alive) {
       this._patrol(dt);
+      this.isBlocking = false;
       return;
     }
 
@@ -183,6 +220,14 @@ export class Mob {
     const playCY  = player.y + player.height / 2;
     const distX   = Math.abs(mobCX - playCX);
     const dist    = Math.sqrt(distX * distX + (mobCY - playCY) ** 2);
+
+    // Shielder blocking logic: block when player is in front
+    if (this.type === 'shielder') {
+      const playerIsInFront = (this.facing === 1 && playCX > mobCX) || 
+                              (this.facing === -1 && playCX < mobCX);
+      // Block if player in front and not currently attacking
+      this.isBlocking = playerIsInFront && this.state !== STATE.ATTACKING;
+    }
 
     if (dist <= MOB_ATTACK_RANGE && this._attackCDTimer <= 0) {
       this._doAttack(player);
@@ -225,6 +270,7 @@ export class Mob {
     this.attackTimer   = MOB_ATTACK_DURATION;
     this._attackCDTimer = this.attackCooldown;
     this.vx = 0;
+    this.isBlocking = false; // Drop shield during attack
     this._updateAttackHitbox();
   }
 
@@ -254,8 +300,18 @@ export class Mob {
       ctx.globalAlpha = this._deathAlpha;
       const scaleY = this._deathScaleY;
       const offsetY = this.height * (1 - scaleY);
-      ctx.fillStyle   = COLOR_MOB;
-      ctx.strokeStyle = COLOR_MOB_OUTLINE;
+      
+      // Color based on type
+      let fillColor = COLOR_MOB;
+      if (this.type === 'speeder') fillColor = COLOR_SPEEDER;
+      if (this.type === 'shielder') fillColor = COLOR_SHIELDER;
+      
+      let outlineColor = COLOR_MOB_OUTLINE;
+      if (this.type === 'speeder') outlineColor = COLOR_SPEEDER_OUTLINE;
+      if (this.type === 'shielder') outlineColor = COLOR_SHIELDER_OUTLINE;
+      
+      ctx.fillStyle   = fillColor;
+      ctx.strokeStyle = outlineColor;
       ctx.lineWidth   = 2;
       ctx.fillRect(this.x, this.y + offsetY, this.width, this.height * scaleY);
       ctx.strokeRect(this.x, this.y + offsetY, this.width, this.height * scaleY);
@@ -263,20 +319,49 @@ export class Mob {
       return;
     }
 
-    // Body color
-    const fill = this.state === STATE.STUNNED ? COLOR_MOB_STUNNED : COLOR_MOB;
+    // Body color based on type and state
+    let fill = COLOR_MOB;
+    let outline = COLOR_MOB_OUTLINE;
+    
+    if (this.type === 'speeder') {
+      fill = this.state === STATE.STUNNED ? COLOR_SPEEDER : COLOR_SPEEDER;
+      outline = COLOR_SPEEDER_OUTLINE;
+    } else if (this.type === 'shielder') {
+      fill = this.state === STATE.STUNNED ? COLOR_MOB_STUNNED : COLOR_SHIELDER;
+      outline = COLOR_SHIELDER_OUTLINE;
+    } else {
+      fill = this.state === STATE.STUNNED ? COLOR_MOB_STUNNED : COLOR_MOB;
+      outline = COLOR_MOB_OUTLINE;
+    }
 
     ctx.shadowColor   = 'rgba(0,0,0,0.35)';
     ctx.shadowOffsetY = 3;
     ctx.shadowBlur    = 5;
 
     ctx.fillStyle   = fill;
-    ctx.strokeStyle = COLOR_MOB_OUTLINE;
+    ctx.strokeStyle = outline;
     ctx.lineWidth   = 2;
     ctx.fillRect(this.x, this.y, this.width, this.height);
     ctx.strokeRect(this.x, this.y, this.width, this.height);
 
     ctx.shadowColor = 'transparent';
+
+    // Shielder shield visual when blocking
+    if (this.type === 'shielder' && this.isBlocking) {
+      const shieldX = this.facing === 1 
+        ? this.x + this.width 
+        : this.x - 8;
+      const shieldY = this.y + this.height * 0.2;
+      const shieldH = this.height * 0.6;
+      
+      ctx.fillStyle = COLOR_SHIELDER_SHIELD;
+      ctx.globalAlpha = 0.7;
+      ctx.fillRect(shieldX, shieldY, 8, shieldH);
+      ctx.strokeStyle = COLOR_SHIELDER_OUTLINE;
+      ctx.lineWidth = 2;
+      ctx.strokeRect(shieldX, shieldY, 8, shieldH);
+      ctx.globalAlpha = 1;
+    }
 
     // Health bar above mob
     this._renderHealthBar(ctx);
