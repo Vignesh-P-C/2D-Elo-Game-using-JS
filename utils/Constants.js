@@ -39,6 +39,19 @@ export const MOB_KNOCKBACK_X           = 200;
 export const MOB_KNOCKBACK_Y           = -150;
 export const MOB_ELO_VALUE             = 10;
 
+// --- Speeder Enemy ---
+export const SPEEDER_SPEED_MULTIPLIER  = 2.0;   // 2x movement speed
+export const SPEEDER_HP_MULTIPLIER     = 0.4;   // 0.4x HP
+export const COLOR_SPEEDER             = '#FFA500'; // Orange
+export const COLOR_SPEEDER_OUTLINE     = '#CC6600';
+
+// --- Shielder Enemy ---
+export const SHIELDER_WIDTH            = 45;
+export const SHIELDER_HEIGHT           = 58;
+export const COLOR_SHIELDER            = '#4169E1'; // Royal blue
+export const COLOR_SHIELDER_OUTLINE    = '#1E3A8A';
+export const COLOR_SHIELDER_SHIELD     = '#87CEEB'; // Light blue for shield
+
 // --- Boss ---
 export const BOSS_WIDTH                = 60;
 export const BOSS_HEIGHT               = 80;

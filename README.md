@@ -151,5 +151,4 @@ Select Open with Live Server
 - Performance optimization pass
 - TypeScript migration for type safety
 - Mini-engine extraction for reuse in future games
-
 ```
