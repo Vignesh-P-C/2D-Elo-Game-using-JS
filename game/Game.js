@@ -9,6 +9,7 @@ import { LevelManager   } from './LevelManager.js';
 import { CollisionSystem } from './CollisionSystem.js';
 import { InputManager   } from '../input/InputManager.js';
 import { HUD            } from '../ui/HUD.js';
+import { audioManager } from '../utils/AssetLoader.js';
 import {
   ELO_START,
   DT_CAP,
@@ -48,7 +49,11 @@ export class Game {
       onEloGain:       (amount)    => this._addElo(amount),
       onDoubleJumpUnlock: ()       => this._unlockDoubleJump(),
     });
-
+    // --- Audio ---
+    this._isBossLevel = false;
+    window.addEventListener('keydown',     () => this._initAudio(), { once: true });
+    window.addEventListener('pointerdown', () => this._initAudio(), { once: true });
+  
     // CollisionSystem reference — rebuilt each level
     this.collision = null;
 
@@ -137,6 +142,7 @@ export class Game {
     }
   }
 
+  
   // -------------------------------------------------------
   // Game Loop
   // -------------------------------------------------------
@@ -176,6 +182,8 @@ export class Game {
 
       // 5. Level manager (mob removal, boss spawning, level transitions)
       this.levelManager.update(dt);
+      this.levelManager.update(dt);
+      this._updateMusic(); // ← add this
 
       // Rebuild collision system if boss state changed
       this._syncCollisionSystem();
@@ -337,4 +345,23 @@ export class Game {
     this.camera.resize(this.canvas.width, this.canvas.height);
     this.hud.resize(this.canvas);
   }
+  async _initAudio() {
+    await audioManager.init();
+    if (this._running) {
+      audioManager.playMusic('normal');
+      this._isBossLevel = false;
+    }
+  }
+
+  _updateMusic() {
+    const bossActive = this.levelManager.boss !== null;
+    if (bossActive && !this._isBossLevel) {
+      audioManager.playMusic('boss');
+      this._isBossLevel = true;
+    } else if (!bossActive && this._isBossLevel) {
+      audioManager.playMusic('normal');
+      this._isBossLevel = false;
+    }
+  }
 }
+
