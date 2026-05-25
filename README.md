@@ -16,7 +16,7 @@
 [![JavaScript](https://img.shields.io/badge/JavaScript-ES6-F7DF1E?logo=javascript&logoColor=black)](https://developer.mozilla.org/en-US/docs/Web/JavaScript)
 [![HTML5 Canvas](https://img.shields.io/badge/HTML5-Canvas-E34F26?logo=html5&logoColor=white)](https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API)
 [![No Dependencies](https://img.shields.io/badge/Dependencies-None-brightgreen)](package.json)
-[![Version](https://img.shields.io/badge/Version-1.0.0-blue)](#)
+[![Version](https://img.shields.io/badge/Version-1.3.0-blue)](#)
 
 ---
 
