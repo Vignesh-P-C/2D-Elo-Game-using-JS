@@ -14,7 +14,7 @@ const cache = new Map();
 
 /**
  * Load and cache a single image by URL.
- * Returns a Promise that resolves with the HTMLImageElement.
+ * Returns a Promise that resolves with the HTMLImageElement
  */
 export function loadImage(url) {
   if (cache.has(url)) {
