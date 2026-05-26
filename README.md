@@ -2,7 +2,7 @@
 
 > A browser-based 2D side-scrolling combat engine — built from scratch with vanilla JavaScript and HTML5 Canvas. No frameworks. No game engines. Just clean, modular systems architecture.
 
-![🌐](https://vignesh-p-c.github.io/2D-Elo-Game-using-JS/)
+[🌐 Play Live](https://vignesh-p-c.github.io/2D-Elo-Game-using-JS/)
 
 <br>
 <!-- ============================================================ -->
