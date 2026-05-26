@@ -1,9 +1,9 @@
 # ⚔️ 2D ELO Game
 
 > A browser-based 2D side-scrolling combat engine — built from scratch with vanilla JavaScript and HTML5 Canvas. No frameworks. No game engines. Just clean, modular systems architecture.
+![Gameplay demo](https://vignesh-p-c.github.io/2D-Elo-Game-using-JS/)
 
 <br>
-
 <!-- ============================================================ -->
 <!-- PLACEHOLDER: Replace with a screen-recorded GIF of gameplay  -->
 <!-- Recommended tool: LICEcap (Windows/Mac) or peek (Linux)       -->
