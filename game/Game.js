@@ -1,6 +1,5 @@
 // ============================================================
-// Game.js — Top-level orchestrator. Owns the game loop,
-// all subsystems, and ELO state. Nothing else has global state.
+// Game.js — Top-level orchestrator.
 // ============================================================
 
 import { Player          } from '../entities/Player.js';
@@ -11,9 +10,7 @@ import { InputManager    } from '../input/InputManager.js';
 import { HUD             } from '../ui/HUD.js';
 import { audioManager    } from '../utils/AssetLoader.js';
 import {
-  ELO_START,
-  DT_CAP,
-  HIT_PAUSE_DURATION,
+  ELO_START, DT_CAP, HIT_PAUSE_DURATION,
   COLOR_BACKGROUND_TOP, COLOR_BACKGROUND_BOT,
   COLOR_GROUND, COLOR_GROUND_EDGE,
   COLOR_PLATFORM, COLOR_PLATFORM_EDGE,
@@ -21,66 +18,52 @@ import {
 } from '../utils/Constants.js';
 
 export class Game {
-  /**
-   * @param {HTMLCanvasElement} canvas
-   * @param {Array}    previousScores  Session scores carried over from last run
-   * @param {Function} onRetry         Called when the player clicks Retry
-   */
   constructor(canvas, previousScores = [], onRetry = null) {
     this.canvas = canvas;
     this.ctx    = canvas.getContext('2d');
 
-    // --- ELO ---
-    this.elo = ELO_START;
+    this.elo                 = ELO_START;
+    this.coins               = 0;       // session coin count
+    this.doubleJumpUnlocked  = false;
 
-    // --- Double jump unlock state ---
-    this.doubleJumpUnlocked = false;
-
-    // --- Subsystems ---
     this.input  = new InputManager();
     this.camera = new Camera(canvas.width, canvas.height);
     this.hud    = new HUD(canvas);
 
-    // Wire retry callback and restore previous session scores
     this.hud.setRetryCallback(() => { if (onRetry) onRetry(); });
-    if (previousScores.length > 0) {
-      this.hud._scores = [...previousScores];
-    }
+    this.hud.setPauseCallback(() => this._togglePause());
+    this.hud.setMusicToggleCallback((enabled) => {
+      if (enabled) audioManager.playMusic(this._isBossLevel ? 'boss' : 'normal');
+      else         audioManager.stopMusic();
+      this._musicEnabled = enabled;
+    });
+    if (previousScores.length > 0) this.hud._scores = [...previousScores];
 
-    // Player (LevelManager positions it per level)
     this.player = new Player(200, 200);
 
-    // LevelManager
     this.levelManager = new LevelManager({
       canvas:             this.canvas,
       player:             this.player,
-      onLevelComplete:    (nextLevel) => this._loadLevel(nextLevel),
-      onEloGain:          (amount)    => this._addElo(amount),
-      onDoubleJumpUnlock: ()          => this._unlockDoubleJump(),
+      onLevelComplete:    (n)  => this._loadLevel(n),
+      onEloGain:          (a)  => this._addElo(a),
+      onDoubleJumpUnlock: ()   => this._unlockDoubleJump(),
     });
 
-    // --- Audio ---
-    this._isBossLevel = false;
+    // Audio
+    this._isBossLevel  = false;
+    this._musicEnabled = true;
     window.addEventListener('keydown',     () => this._initAudio(), { once: true });
     window.addEventListener('pointerdown', () => this._initAudio(), { once: true });
 
-    // CollisionSystem — rebuilt each level
     this.collision = null;
 
-    // Timing
     this._lastTimestamp = 0;
     this._running       = false;
-
-    // Message display
-    this._messageAlpha = 0;
-
-    // Hit pause
+    this._paused        = false;
+    this._messageAlpha  = 0;
     this._hitPauseTimer = 0;
-
-    // Score recorded flag (so we only record once per run)
     this._scoreRecorded = false;
 
-    // Canvas resize
     window.addEventListener('resize', () => this._onResize());
   }
 
@@ -97,19 +80,15 @@ export class Game {
     requestAnimationFrame((ts) => this._loop(ts));
   }
 
-  /** Return session scores so main.js can pass them to the next Game instance. */
-  getSessionScores() {
-    return this.hud._scores;
-  }
+  getSessionScores() { return this.hud._scores; }
 
-  /** Stop the loop and clean up. Called by main.js on retry. */
   destroy() {
     this._running = false;
     audioManager.stopMusic();
   }
 
   // -------------------------------------------------------
-  // Private — level loading
+  // Private
   // -------------------------------------------------------
 
   _loadLevel(levelNumber) {
@@ -121,22 +100,27 @@ export class Game {
 
   _buildCollisionSystem() {
     this.collision = new CollisionSystem({
-      player:      this.player,
-      mobs:        this.levelManager.mobs,
-      boss:        this.levelManager.boss,
-      orbs:        this.levelManager.orbs,
-      platforms:   this.levelManager.platforms,
-      ground:      this.levelManager.ground,
-      worldWidth:  this.levelManager.worldWidth,
-      worldHeight: this.canvas.height,
-      onEloGain:   (amount) => this._addElo(amount),
-      onSpawnOrb:  (x, y)   => this.levelManager.spawnOrb(x, y),
-      onHitEvent:  (event)  => this._handleHitEvent(event),
+      player:          this.player,
+      mobs:            this.levelManager.mobs,
+      boss:            this.levelManager.boss,
+      orbs:            this.levelManager.orbs,
+      coins:           this.levelManager.coins,
+      platforms:       this.levelManager.platforms,
+      ground:          this.levelManager.ground,
+      worldWidth:      this.levelManager.worldWidth,
+      worldHeight:     this.canvas.height,
+      onEloGain:       (a)  => this._addElo(a),
+      onSpawnOrb:      (x, y) => this.levelManager.spawnOrb(x, y),
+      onHitEvent:      (e)  => this._handleHitEvent(e),
+      onCoinCollected: ()   => { this.coins++; },
     });
   }
 
-  _addElo(amount) {
-    this.elo += amount;
+  _addElo(amount)  { this.elo += amount; }
+
+  _togglePause() {
+    this._paused = !this._paused;
+    this.hud.setPaused(this._paused);
   }
 
   _unlockDoubleJump() {
@@ -162,12 +146,11 @@ export class Game {
   _loop(timestamp) {
     if (!this._running) return;
 
-    // 1. Delta time (capped)
     const rawDt = (timestamp - this._lastTimestamp) / 1000;
     this._lastTimestamp = timestamp;
     const dt = Math.min(rawDt || 0, DT_CAP);
 
-    // Hit pause — skip logic but keep rendering
+    // Hit pause
     if (this._hitPauseTimer > 0) {
       this._hitPauseTimer -= dt;
       this._render();
@@ -175,56 +158,45 @@ export class Game {
       return;
     }
 
-    // 2. Input
+    // Game pause — render only
+    if (this._paused) {
+      this._render();
+      requestAnimationFrame((ts) => this._loop(ts));
+      return;
+    }
+
     this.input.update();
 
     if (this.player.alive) {
-      // 3. Player
       this.player.update(dt, this.input, this.levelManager.worldWidth, this.levelManager.currentLevel);
 
-      // 4. Enemies
       const allEnemies = [...this.levelManager.mobs];
       if (this.levelManager.boss) allEnemies.push(this.levelManager.boss);
-      for (const enemy of allEnemies) {
-        enemy.update(dt, this.player, this.levelManager.worldWidth);
-      }
+      for (const enemy of allEnemies) enemy.update(dt, this.player, this.levelManager.worldWidth);
 
-      // 5. Level manager (mob removal, boss spawning, transitions)
       this.levelManager.update(dt);
-
-      // 6. Music swap
       this._updateMusic();
-
-      // 7. Collision
       this._syncCollisionSystem();
       this.collision.run();
-
-      // 8. Camera
       this.camera.update(dt, this.player);
-
     } else {
-      // Record score exactly once when the player dies
       if (!this._scoreRecorded) {
         this._scoreRecorded = true;
         this.hud.recordScore(this.elo, this.levelManager.currentLevel);
         audioManager.stopMusic();
       }
-
-      // Still update camera over the corpse
       this.camera.update(dt, this.player);
     }
 
-    // 9. HUD
     this._updateMessage(dt);
     this.hud.update(dt, {
       hp:    this.player.hp,
       elo:   this.elo,
       level: this.levelManager.currentLevel,
+      coins: this.coins,
     });
 
-    // 10. Render
     this._render();
-
     requestAnimationFrame((ts) => this._loop(ts));
   }
 
@@ -232,17 +204,15 @@ export class Game {
     this.collision.mobs       = this.levelManager.mobs;
     this.collision.boss       = this.levelManager.boss;
     this.collision.orbs       = this.levelManager.orbs;
+    this.collision.coins      = this.levelManager.coins;
     this.collision.platforms  = this.levelManager.platforms;
     this.collision.ground     = this.levelManager.ground;
     this.collision.worldWidth = this.levelManager.worldWidth;
   }
 
   _updateMessage(dt) {
-    if (this.levelManager.message) {
-      this._messageAlpha = 1;
-    } else {
-      this._messageAlpha = Math.max(0, this._messageAlpha - dt * 0.8);
-    }
+    if (this.levelManager.message) this._messageAlpha = 1;
+    else this._messageAlpha = Math.max(0, this._messageAlpha - dt * 0.8);
   }
 
   // -------------------------------------------------------
@@ -251,13 +221,14 @@ export class Game {
 
   async _initAudio() {
     await audioManager.init();
-    if (this._running) {
+    if (this._running && this._musicEnabled) {
       audioManager.playMusic('normal');
       this._isBossLevel = false;
     }
   }
 
   _updateMusic() {
+    if (!this._musicEnabled) return;
     const bossActive = this.levelManager.boss !== null;
     if (bossActive && !this._isBossLevel) {
       audioManager.playMusic('boss');
@@ -285,12 +256,10 @@ export class Game {
     this._renderGround(ctx);
     this._renderPlatforms(ctx);
 
-    for (const orb of this.levelManager.orbs) orb.render(ctx);
-
-    for (const mob of this.levelManager.mobs) mob.render(ctx);
-
+    for (const orb  of this.levelManager.orbs)  orb.render(ctx);
+    for (const coin of this.levelManager.coins)  coin.render(ctx);
+    for (const mob  of this.levelManager.mobs)   mob.render(ctx);
     if (this.levelManager.boss) this.levelManager.boss.render(ctx);
-
     this.player.render(ctx);
 
     ctx.restore();
@@ -320,17 +289,13 @@ export class Game {
   _renderGround(ctx) {
     const g = this.levelManager.ground;
     if (!g) return;
-
     ctx.fillStyle = COLOR_GROUND;
     ctx.fillRect(g.x, g.y, g.width, g.height);
-
     ctx.fillStyle = COLOR_GROUND_EDGE;
     ctx.fillRect(g.x, g.y, g.width, 6);
-
     ctx.strokeStyle = 'rgba(0,0,0,0.15)';
     ctx.lineWidth   = 1;
-    const step = 60;
-    for (let x = 0; x < g.width; x += step) {
+    for (let x = 0; x < g.width; x += 60) {
       ctx.beginPath();
       ctx.moveTo(g.x + x, g.y);
       ctx.lineTo(g.x + x, g.y + g.height);
@@ -342,10 +307,8 @@ export class Game {
     for (const plat of this.levelManager.platforms) {
       ctx.fillStyle = COLOR_PLATFORM;
       ctx.fillRect(plat.x, plat.y, plat.width, plat.height);
-
       ctx.fillStyle = COLOR_PLATFORM_EDGE;
       ctx.fillRect(plat.x, plat.y, plat.width, 4);
-
       ctx.strokeStyle = 'rgba(0,0,0,0.5)';
       ctx.lineWidth   = 1.5;
       ctx.strokeRect(plat.x, plat.y, plat.width, plat.height);
