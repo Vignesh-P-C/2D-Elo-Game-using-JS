@@ -24,5 +24,4 @@ function startGame(previousScores = []) {
   });
   activeGame.start();
 }
-x
 preload().then(() => startGame());
