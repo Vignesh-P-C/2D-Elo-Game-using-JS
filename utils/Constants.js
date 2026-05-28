@@ -161,11 +161,11 @@ export const STATE = {
 };
 
 // --- Coins ---
-// Coins per level (index 0 = level 1). Beyond index: last + COINS_PER_LEVEL_EXTRA each level.
-export const COINS_PER_LEVEL           = [2, 3, 5, 8, 10, 12];
-export const COINS_PER_LEVEL_EXTRA     = 2;   // added per level beyond the array
-export const COIN_WIDTH                = 28;
-export const COIN_HEIGHT               = 28;
-export const COIN_MIN_X_OFFSET         = 400; // min X from world start
-export const COIN_MAX_GROUND_OFFSET    = 250; // max px above ground (single-jump reachable)
-export const COIN_MIN_GROUND_OFFSET    = 40;  // min px above ground
+export const COINS_PER_LEVEL        = [2, 3, 5, 8, 10, 12];
+export const COINS_PER_LEVEL_EXTRA  = 2;
+export const COIN_WIDTH             = 28;
+export const COIN_HEIGHT            = 28;
+export const COIN_MIN_X_OFFSET      = 400;
+// 1.5x player height (56px) = 84px max above ground, min just off the ground
+export const COIN_MAX_GROUND_OFFSET = 84;
+export const COIN_MIN_GROUND_OFFSET = 20;

@@ -34,16 +34,18 @@ export class HUD {
     this._onMusicToggle = null;
 
     // State
-    this._retryBtn    = null;
-    this._gearBtn     = null;
-    this._paused      = false;
-    this._musicOn     = true;
+    this._retryBtn     = null;
+    this._gearBtn      = null;
+    this._paused       = false;
+    this._musicOn      = true;
+    this._showControls = false;   // sub-page inside settings
 
-    // Settings popup button bounds
     this._settingsBtns = {};
 
-    this._boundClick = (e) => this._handleClick(e);
+    this._boundClick  = (e) => this._handleClick(e);
+    this._boundKeydown = (e) => this._handleKeydown(e);
     this.canvas.addEventListener('click', this._boundClick);
+    window.addEventListener('keydown', this._boundKeydown);
   }
 
   // -------------------------------------------------------
@@ -53,8 +55,7 @@ export class HUD {
   setRetryCallback(fn)       { this._onRetry       = fn; }
   setPauseCallback(fn)       { this._onPause       = fn; }
   setMusicToggleCallback(fn) { this._onMusicToggle = fn; }
-
-  setPaused(paused) { this._paused = paused; }
+  setPaused(paused)          { this._paused = paused; }
 
   recordScore(elo, level) {
     this._scores.push({ elo, level });
@@ -77,13 +78,13 @@ export class HUD {
 
     if (message && messageAlpha > 0) this._renderMessage(ctx, message, messageAlpha);
 
-    // Gear button (top-left, next to stats panel)
     this._gearBtn = this._drawGearButton(ctx);
 
-    // Settings popup (when paused)
-    if (this._paused) this._renderSettingsPopup(ctx);
+    if (this._paused) {
+      if (this._showControls) this._renderControlsPage(ctx);
+      else                    this._renderSettingsPopup(ctx);
+    }
 
-    // Game over overlay
     if (this._hp <= 0) this._renderGameOver(ctx);
   }
 
@@ -94,14 +95,13 @@ export class HUD {
   }
 
   // -------------------------------------------------------
-  // Stats panel (hp, elo, level, coins)
+  // Stats panel
   // -------------------------------------------------------
 
   _renderStatsPanel(ctx) {
     const pad    = HUD_PADDING;
-    const panelW = HUD_BAR_WIDTH + 80;
     const rowH   = HUD_BAR_HEIGHT + 10;
-    // Extra height for coin row
+    const panelW = HUD_BAR_WIDTH + 80;
     const panelH = rowH * 2 + 56;
 
     ctx.save();
@@ -113,47 +113,35 @@ export class HUD {
     this.healthBar.render(ctx, Math.ceil(this._hp));
     this.eloBar.render(ctx, this._elo);
 
-    // Level
     ctx.save();
     ctx.fillStyle    = COLOR_TEXT;
     ctx.font         = 'bold 13px monospace';
     ctx.textAlign    = 'left';
     ctx.textBaseline = 'top';
     ctx.fillText(`Level: ${this._level}`, pad, pad + rowH * 2 + 4);
-    ctx.restore();
 
-    // Coins
-    ctx.save();
-    ctx.font         = 'bold 13px monospace';
-    ctx.textAlign    = 'left';
-    ctx.textBaseline = 'top';
-    ctx.fillStyle    = '#FFD700';
+    ctx.fillStyle = '#FFD700';
     ctx.fillText(`🪙 ${this._coins}`, pad, pad + rowH * 2 + 24);
     ctx.restore();
   }
 
   // -------------------------------------------------------
-  // Gear / settings button
+  // Gear button
   // -------------------------------------------------------
 
   _drawGearButton(ctx) {
     const pad    = HUD_PADDING;
     const rowH   = HUD_BAR_HEIGHT + 10;
     const panelW = HUD_BAR_WIDTH + 80;
-    const panelH = rowH * 2 + 56;
 
-    // Position: right of the stats panel
     const btnSize = 32;
     const btnX    = pad - 6 + panelW + 8;
     const btnY    = pad - 6;
 
-    // Button background
     ctx.save();
     ctx.fillStyle = this._paused ? 'rgba(255,255,255,0.2)' : COLOR_HUD_BG;
     this._roundRect(ctx, btnX, btnY, btnSize, btnSize, 6);
     ctx.fill();
-
-    // Gear icon drawn with canvas arcs
     this._drawGearIcon(ctx, btnX + btnSize / 2, btnY + btnSize / 2, 10);
     ctx.restore();
 
@@ -178,7 +166,6 @@ export class HUD {
     ctx.closePath();
     ctx.fill();
 
-    // Centre hole
     ctx.fillStyle = COLOR_HUD_BG;
     ctx.beginPath();
     ctx.arc(cx, cy, r * 0.3, 0, Math.PI * 2);
@@ -196,16 +183,14 @@ export class HUD {
     const cy = ch / 2;
 
     const popW = 320;
-    const popH = 300;
+    const popH = 320;
     const popX = cx - popW / 2;
     const popY = cy - popH / 2;
 
-    // Backdrop
     ctx.save();
     ctx.fillStyle = 'rgba(0,0,0,0.55)';
     ctx.fillRect(0, 0, cw, ch);
 
-    // Panel
     ctx.fillStyle = 'rgba(15,15,35,0.97)';
     this._roundRect(ctx, popX, popY, popW, popH, 14);
     ctx.fill();
@@ -213,14 +198,12 @@ export class HUD {
     ctx.lineWidth   = 1.5;
     ctx.stroke();
 
-    // Title
     ctx.fillStyle    = '#FFFFFF';
     ctx.font         = 'bold 20px monospace';
     ctx.textAlign    = 'center';
     ctx.textBaseline = 'top';
     ctx.fillText('⚙  SETTINGS', cx, popY + 20);
 
-    // Divider
     ctx.strokeStyle = 'rgba(255,255,255,0.1)';
     ctx.lineWidth   = 1;
     ctx.beginPath();
@@ -228,25 +211,24 @@ export class HUD {
     ctx.lineTo(popX + popW - 20, popY + 52);
     ctx.stroke();
 
-    // Buttons
     const btns = [
-      { key: 'music',    label: this._musicOn ? '🔊  Music: ON'  : '🔇  Music: OFF', active: this._musicOn },
-      { key: 'sfx',      label: '🔔  Sound FX: Soon™',           active: false, disabled: true },
-      { key: 'shop',     label: '🛒  Shop: Coming Soon',          active: false, disabled: true },
-      { key: 'build',    label: '⚔️  Switch Build: Coming Soon',  active: false, disabled: true },
+      { key: 'music',    label: this._musicOn ? '🔊  Music: ON'  : '🔇  Music: OFF', active: this._musicOn,  disabled: false },
+      { key: 'controls', label: '🎮  Controls',                                       active: false,          disabled: false },
+      { key: 'sfx',      label: '🔔  Sound FX: Soon™',                                active: false,          disabled: true  },
+      { key: 'shop',     label: '🛒  Shop: Coming Soon',                               active: false,          disabled: true  },
+      { key: 'build',    label: '⚔️  Switch Build: Coming Soon',                      active: false,          disabled: true  },
     ];
 
     this._settingsBtns = {};
-    const btnH   = 44;
+    const btnH   = 40;
     const btnW   = popW - 48;
     const startY = popY + 64;
 
     for (let i = 0; i < btns.length; i++) {
-      const b    = btns[i];
-      const bx   = popX + 24;
-      const by   = startY + i * (btnH + 8);
+      const b  = btns[i];
+      const bx = popX + 24;
+      const by = startY + i * (btnH + 6);
 
-      // Button bg
       ctx.fillStyle = b.disabled
         ? 'rgba(255,255,255,0.04)'
         : b.active
@@ -267,23 +249,194 @@ export class HUD {
       ctx.textBaseline = 'middle';
       ctx.fillText(b.label, bx + 14, by + btnH / 2);
 
+      // Arrow for controls button
+      if (b.key === 'controls') {
+        ctx.fillStyle    = 'rgba(255,255,255,0.5)';
+        ctx.textAlign    = 'right';
+        ctx.fillText('›', bx + btnW - 12, by + btnH / 2);
+      }
+
       if (!b.disabled) {
         this._settingsBtns[b.key] = { x: bx, y: by, w: btnW, h: btnH };
       }
     }
 
-    // Close hint
     ctx.fillStyle    = 'rgba(255,255,255,0.3)';
     ctx.font         = '11px monospace';
     ctx.textAlign    = 'center';
     ctx.textBaseline = 'bottom';
-    ctx.fillText('Click ⚙ again to close', cx, popY + popH - 10);
+    ctx.fillText('Press ESC or click ⚙ to close', cx, popY + popH - 10);
 
     ctx.restore();
   }
 
   // -------------------------------------------------------
-  // Controls hint
+  // Controls page
+  // -------------------------------------------------------
+
+  _renderControlsPage(ctx) {
+    const cw = this.canvas.width;
+    const ch = this.canvas.height;
+    const cx = cw / 2;
+    const cy = ch / 2;
+
+    const popW = 520;
+    const popH = 420;
+    const popX = cx - popW / 2;
+    const popY = cy - popH / 2;
+
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    ctx.fillRect(0, 0, cw, ch);
+
+    ctx.fillStyle = 'rgba(15,15,35,0.97)';
+    this._roundRect(ctx, popX, popY, popW, popH, 14);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+    ctx.lineWidth   = 1.5;
+    ctx.stroke();
+
+    // Title
+    ctx.fillStyle    = '#FFFFFF';
+    ctx.font         = 'bold 20px monospace';
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'top';
+    ctx.fillText('🎮  CONTROLS', cx, popY + 20);
+
+    // Divider
+    ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+    ctx.lineWidth   = 1;
+    ctx.beginPath();
+    ctx.moveTo(popX + 20, popY + 52);
+    ctx.lineTo(popX + popW - 20, popY + 52);
+    ctx.stroke();
+
+    // --- Keyboard layout ---
+    const ks = 42;   // key size
+    const kg = 5;    // key gap
+    const kr = 6;    // key border radius
+
+    // Helper to draw one key
+    const drawKey = (label, x, y, w = ks, h = ks, highlight = false) => {
+      ctx.fillStyle = highlight ? 'rgba(74,144,226,0.6)' : 'rgba(255,255,255,0.10)';
+      this._roundRect(ctx, x, y, w, h, kr);
+      ctx.fill();
+      ctx.strokeStyle = highlight ? 'rgba(74,144,226,0.9)' : 'rgba(255,255,255,0.25)';
+      ctx.lineWidth   = 1.5;
+      ctx.stroke();
+
+      ctx.fillStyle    = '#FFFFFF';
+      ctx.font         = `bold ${label.length > 3 ? '9' : '12'}px monospace`;
+      ctx.textAlign    = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(label, x + w / 2, y + h / 2);
+    };
+
+    // Helper for action label
+    const drawLabel = (text, x, y) => {
+      ctx.fillStyle    = 'rgba(255,255,255,0.6)';
+      ctx.font         = '12px monospace';
+      ctx.textAlign    = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(text, x, y);
+    };
+
+    // --- WASD cluster ---
+    const wasdX = popX + 44;
+    const wasdY = popY + 80;
+
+    // Row 0: W
+    drawKey('W', wasdX + ks + kg, wasdY, ks, ks, true);
+    // Row 1: A S D
+    drawKey('A', wasdX,               wasdY + ks + kg, ks, ks, true);
+    drawKey('S', wasdX + ks + kg,     wasdY + ks + kg, ks, ks);
+    drawKey('D', wasdX + (ks + kg)*2, wasdY + ks + kg, ks, ks, true);
+
+    // Arrow keys cluster (offset right)
+    const arrX = wasdX + (ks + kg) * 4;
+    const arrY = wasdY;
+    drawKey('↑', arrX + ks + kg, arrY,           ks, ks, true);
+    drawKey('←', arrX,           arrY + ks + kg, ks, ks, true);
+    drawKey('↓', arrX + ks + kg, arrY + ks + kg, ks, ks);
+    drawKey('→', arrX+(ks+kg)*2, arrY + ks + kg, ks, ks, true);
+
+    // Labels for movement
+    const lblX = wasdX + (ks + kg) * 7 + 16;
+    drawLabel('← Move Left',   lblX, wasdY + (ks + kg) + ks / 2);
+    drawLabel('→ Move Right',  lblX, wasdY + (ks + kg) + ks / 2 + 22);
+    drawLabel('↑ Jump',        lblX, wasdY + ks / 2);
+
+    // --- Space bar ---
+    const spaceY = wasdY + (ks + kg) * 2 + 16;
+    drawKey('SPACE', wasdX, spaceY, ks * 3 + kg * 2, 34, true);
+    drawLabel('Jump', wasdX + ks * 3 + kg * 2 + 10, spaceY + 17);
+
+    // --- Mouse buttons ---
+    const mouseX = popX + 44;
+    const mouseY = spaceY + 34 + 20;
+
+    // Left mouse
+    ctx.fillStyle = 'rgba(74,144,226,0.6)';
+    this._roundRect(ctx, mouseX, mouseY, 32, 44, 8);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(74,144,226,0.9)';
+    ctx.lineWidth   = 1.5;
+    ctx.stroke();
+    // divider line
+    ctx.beginPath();
+    ctx.moveTo(mouseX + 16, mouseY);
+    ctx.lineTo(mouseX + 16, mouseY + 44);
+    ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+    ctx.lineWidth   = 1;
+    ctx.stroke();
+    // highlight left half
+    ctx.fillStyle = 'rgba(255,255,255,0.15)';
+    this._roundRect(ctx, mouseX, mouseY, 16, 44, 8);
+    ctx.fill();
+    ctx.fillStyle    = '#FFFFFF';
+    ctx.font         = '9px monospace';
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('L', mouseX + 8,  mouseY + 22);
+    ctx.fillText('R', mouseX + 24, mouseY + 22);
+    drawLabel('Left Click — Attack', mouseX + 44, mouseY + 16);
+    drawLabel('Right Click — Dash',  mouseX + 44, mouseY + 32);
+
+    // --- ESC key ---
+    const escX = popX + popW - 44 - ks;
+    const escY = popY + 80;
+    drawKey('ESC', escX, escY, ks, ks * 0.75);
+    drawLabel('Open / Close Settings', escX - 120, escY + ks * 0.75 / 2);
+
+    // Back button
+    const backW = 100;
+    const backH = 34;
+    const backX = popX + 20;
+    const backY = popY + popH - 50;
+    ctx.fillStyle = 'rgba(255,255,255,0.08)';
+    this._roundRect(ctx, backX, backY, backW, backH, 8);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+    ctx.lineWidth   = 1;
+    ctx.stroke();
+    ctx.fillStyle    = '#FFFFFF';
+    ctx.font         = 'bold 13px monospace';
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('‹ Back', backX + backW / 2, backY + backH / 2);
+    this._settingsBtns['back'] = { x: backX, y: backY, w: backW, h: backH };
+
+    ctx.fillStyle    = 'rgba(255,255,255,0.3)';
+    ctx.font         = '11px monospace';
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText('Press ESC to close', cx, popY + popH - 10);
+
+    ctx.restore();
+  }
+
+  // -------------------------------------------------------
+  // Controls hint (bottom bar)
   // -------------------------------------------------------
 
   _renderControls(ctx) {
@@ -293,7 +446,7 @@ export class HUD {
     ctx.textAlign    = 'left';
     ctx.textBaseline = 'bottom';
     ctx.fillText(
-      'Move: ←→ / AD   Jump: ↑ / W / Space   Attack: Left Click   Dash: Right Click',
+      'Move: ←→ / AD   Jump: ↑ / W / Space   Attack: Left Click   Dash: Right Click   Settings: ESC',
       HUD_PADDING, this.canvas.height - HUD_PADDING
     );
     ctx.restore();
@@ -361,7 +514,7 @@ export class HUD {
 
     ctx.fillStyle = 'rgba(255,255,255,0.4)';
     ctx.font      = '12px monospace';
-    ctx.fillText('RANK', tableX + 36, headerY + 28);
+    ctx.fillText('RANK', tableX + 36,  headerY + 28);
     ctx.fillText('ELO',  tableX + 150, headerY + 28);
     ctx.fillText('LEVEL REACHED', cx + 70, headerY + 28);
 
@@ -424,30 +577,61 @@ export class HUD {
   // Input
   // -------------------------------------------------------
 
+  _handleKeydown(e) {
+    if (e.key === 'Escape' && this._hp > 0) {
+      if (this._showControls) {
+        this._showControls = false;   // ESC from controls → back to settings
+      } else {
+        this._paused = !this._paused; // ESC from settings → toggle pause
+        if (this._onPause) this._onPause();
+      }
+    }
+  }
+
   _handleClick(e) {
     const rect = this.canvas.getBoundingClientRect();
     const mx   = e.clientX - rect.left;
     const my   = e.clientY - rect.top;
 
-    // Gear button — always active
+    // Gear button — always active while alive
     if (this._gearBtn && this._hp > 0) {
       const g = this._gearBtn;
       if (mx >= g.x && mx <= g.x + g.w && my >= g.y && my <= g.y + g.h) {
-        if (this._onPause) this._onPause();
+        if (this._showControls) {
+          this._showControls = false;
+        } else {
+          this._paused = !this._paused;
+          if (this._onPause) this._onPause();
+        }
         return;
       }
     }
 
-    // Settings popup buttons
     if (this._paused) {
+      // Controls sub-page
+      if (this._showControls) {
+        const back = this._settingsBtns['back'];
+        if (back && mx >= back.x && mx <= back.x + back.w && my >= back.y && my <= back.y + back.h) {
+          this._showControls = false;
+        }
+        return;
+      }
+
+      // Settings buttons
       const mb = this._settingsBtns.music;
       if (mb && mx >= mb.x && mx <= mb.x + mb.w && my >= mb.y && my <= mb.y + mb.h) {
         this._musicOn = !this._musicOn;
         if (this._onMusicToggle) this._onMusicToggle(this._musicOn);
         return;
       }
-      // Swallow all other clicks while paused (except gear handled above)
-      return;
+
+      const cb = this._settingsBtns.controls;
+      if (cb && mx >= cb.x && mx <= cb.x + cb.w && my >= cb.y && my <= cb.y + cb.h) {
+        this._showControls = true;
+        return;
+      }
+
+      return; // swallow all other clicks while paused
     }
 
     // Retry button
