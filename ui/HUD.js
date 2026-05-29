@@ -7,6 +7,14 @@ import { EloBar     } from './EloBar.js';
 import {
   HUD_PADDING, HUD_BAR_WIDTH, HUD_BAR_HEIGHT,
   PLAYER_MAX_HP, COLOR_HUD_BG, COLOR_TEXT,
+  // Minimap
+  MINIMAP_WIDTH, MINIMAP_HEIGHT, MINIMAP_PADDING,
+  MINIMAP_BG, MINIMAP_BORDER,
+  MINIMAP_PLAYER_COLOR, MINIMAP_MOB_COLOR, MINIMAP_BOSS_COLOR,
+  MINIMAP_GROUND_COLOR,
+  // Damage numbers
+  DMG_NUM_DURATION, DMG_NUM_RISE_SPEED,
+  DMG_NUM_PLAYER_COLOR, DMG_NUM_MOB_COLOR,
 } from '../utils/Constants.js';
 
 export class HUD {
@@ -38,11 +46,18 @@ export class HUD {
     this._gearBtn      = null;
     this._paused       = false;
     this._musicOn      = true;
-    this._showControls = false;   // sub-page inside settings
+    this._showControls = false;
 
     this._settingsBtns = {};
 
-    this._boundClick  = (e) => this._handleClick(e);
+    // ---- Damage numbers ----
+    // Each entry: { wx, wy, amount, isPlayer, timer, screenX, screenY }
+    this._damageNumbers = [];
+
+    // ---- Minimap state (set by Game each frame) ----
+    this._minimapData = null; // { mobs, boss, player, worldWidth, groundY }
+
+    this._boundClick   = (e) => this._handleClick(e);
     this._boundKeydown = (e) => this._handleKeydown(e);
     this.canvas.addEventListener('click', this._boundClick);
     window.addEventListener('keydown', this._boundKeydown);
@@ -63,6 +78,34 @@ export class HUD {
     this._currentRunRank = this._scores.findIndex(s => s.elo === elo && s.level === level);
   }
 
+  /**
+   * Called by Game each frame to pass world entities for minimap rendering.
+   */
+  setMinimapData(data) {
+    this._minimapData = data;
+  }
+
+  /**
+   * Spawn a floating damage number.
+   * @param {number} worldX   World-space X of the hit
+   * @param {number} worldY   World-space Y of the hit
+   * @param {number} amount   Damage dealt
+   * @param {boolean} isPlayer  true = player was hit (red), false = enemy hit (white)
+   * @param {{ x:number, y:number }} cameraOffset  Camera translate at time of spawn
+   */
+  spawnDamageNumber(worldX, worldY, amount, isPlayer, cameraOffset) {
+    this._damageNumbers.push({
+      worldX,
+      worldY,
+      amount,
+      isPlayer,
+      timer:   DMG_NUM_DURATION,
+      // Screen position is recalculated every frame using the current camera
+      _camX: cameraOffset ? cameraOffset.x : 0,
+      _camY: cameraOffset ? cameraOffset.y : 0,
+    });
+  }
+
   update(dt, state) {
     this._hp    = state.hp;
     this._elo   = state.elo;
@@ -70,13 +113,21 @@ export class HUD {
     this._coins = state.coins ?? 0;
     this.healthBar.update(state.hp, dt);
     this.eloBar.update(state.elo, dt);
+
+    // Tick damage numbers
+    for (const dn of this._damageNumbers) dn.timer -= dt;
+    this._damageNumbers = this._damageNumbers.filter(dn => dn.timer > 0);
   }
 
-  render(ctx, message, messageAlpha) {
+  render(ctx, message, messageAlpha, cameraOffsetX = 0, cameraOffsetY = 0) {
     this._renderStatsPanel(ctx);
     this._renderControls(ctx);
+    this._renderMinimap(ctx);
 
     if (message && messageAlpha > 0) this._renderMessage(ctx, message, messageAlpha);
+
+    // Damage numbers (rendered in screen-space using camera offset)
+    this._renderDamageNumbers(ctx, cameraOffsetX, cameraOffsetY);
 
     this._gearBtn = this._drawGearButton(ctx);
 
@@ -92,6 +143,129 @@ export class HUD {
     this.canvas.removeEventListener('click', this._boundClick);
     this.canvas = canvas;
     this.canvas.addEventListener('click', this._boundClick);
+  }
+
+  // -------------------------------------------------------
+  // Damage Numbers
+  // -------------------------------------------------------
+
+  _renderDamageNumbers(ctx, camOffX, camOffY) {
+    if (this._damageNumbers.length === 0) return;
+    ctx.save();
+    for (const dn of this._damageNumbers) {
+      const progress = 1 - dn.timer / DMG_NUM_DURATION; // 0→1
+      const alpha    = Math.max(0, dn.timer / DMG_NUM_DURATION);
+      const riseY    = progress * DMG_NUM_RISE_SPEED;
+
+      // Convert world pos → screen pos via camera offset
+      const sx = dn.worldX + camOffX;
+      const sy = dn.worldY + camOffY - riseY;
+
+      // Scale: pop up from small, then shrink as it fades
+      const scale = progress < 0.15
+        ? 0.5 + (progress / 0.15) * 0.75   // quick grow
+        : 1.25 - progress * 0.4;            // slow shrink
+
+      const fontSize = Math.round(16 * Math.max(0.5, scale));
+      const color    = dn.isPlayer ? DMG_NUM_PLAYER_COLOR : DMG_NUM_MOB_COLOR;
+
+      ctx.globalAlpha = alpha;
+      ctx.font        = `bold ${fontSize}px monospace`;
+      ctx.textAlign   = 'center';
+      ctx.textBaseline = 'middle';
+
+      // Drop shadow
+      ctx.fillStyle = 'rgba(0,0,0,0.7)';
+      ctx.fillText(`-${dn.amount}`, sx + 1, sy + 1);
+
+      // Main text
+      ctx.fillStyle = color;
+      ctx.fillText(`-${dn.amount}`, sx, sy);
+    }
+    ctx.globalAlpha = 1;
+    ctx.restore();
+  }
+
+  // -------------------------------------------------------
+  // Minimap  (top-right corner)
+  // -------------------------------------------------------
+
+  _renderMinimap(ctx) {
+    const d = this._minimapData;
+    if (!d || !d.player) return;
+
+    const cw   = this.canvas.width;
+    const mapW = MINIMAP_WIDTH;
+    const mapH = MINIMAP_HEIGHT;
+    const mapX = cw - mapW - MINIMAP_PADDING;
+    const mapY = MINIMAP_PADDING;
+
+    ctx.save();
+
+    // Background
+    ctx.fillStyle = MINIMAP_BG;
+    this._roundRect(ctx, mapX, mapY, mapW, mapH, 4);
+    ctx.fill();
+
+    // Clip to minimap rect
+    ctx.beginPath();
+    this._roundRect(ctx, mapX, mapY, mapW, mapH, 4);
+    ctx.clip();
+
+    // Ground strip
+    const groundRatio = d.groundY / (d.worldHeight || this.canvas.height);
+    ctx.fillStyle = MINIMAP_GROUND_COLOR;
+    ctx.fillRect(mapX, mapY + mapH * groundRatio, mapW, mapH * (1 - groundRatio));
+
+    const toMapX = (wx) => mapX + (wx / d.worldWidth) * mapW;
+    const toMapY = (wy) => mapY + (wy / (d.worldHeight || this.canvas.height)) * mapH;
+
+    // Platforms
+    if (d.platforms) {
+      ctx.fillStyle = 'rgba(139,69,19,0.7)';
+      for (const p of d.platforms) {
+        const px = toMapX(p.x);
+        const py = toMapY(p.y);
+        const pw = (p.width  / d.worldWidth)                               * mapW;
+        const ph = Math.max(2, (p.height / (d.worldHeight || this.canvas.height)) * mapH);
+        ctx.fillRect(px, py, Math.max(3, pw), ph);
+      }
+    }
+
+    // Mobs
+    if (d.mobs) {
+      ctx.fillStyle = MINIMAP_MOB_COLOR;
+      for (const m of d.mobs) {
+        if (m.remove) continue;
+        ctx.beginPath();
+        ctx.arc(toMapX(m.x + m.width / 2), toMapY(m.y + m.height / 2), 2.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    // Boss
+    if (d.boss && !d.boss.remove) {
+      ctx.fillStyle = MINIMAP_BOSS_COLOR;
+      ctx.beginPath();
+      ctx.arc(toMapX(d.boss.x + d.boss.width / 2), toMapY(d.boss.y + d.boss.height / 2), 4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Player — bright blue dot
+    ctx.fillStyle = MINIMAP_PLAYER_COLOR;
+    ctx.beginPath();
+    ctx.arc(toMapX(d.player.x + d.player.width / 2), toMapY(d.player.y + d.player.height / 2), 3.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore();
+
+    // Border (drawn outside clip)
+    ctx.save();
+    ctx.strokeStyle = MINIMAP_BORDER;
+    ctx.lineWidth   = 1;
+    this._roundRect(ctx, mapX, mapY, mapW, mapH, 4);
+    ctx.stroke();
+    ctx.restore();
   }
 
   // -------------------------------------------------------
@@ -249,7 +423,6 @@ export class HUD {
       ctx.textBaseline = 'middle';
       ctx.fillText(b.label, bx + 14, by + btnH / 2);
 
-      // Arrow for controls button
       if (b.key === 'controls') {
         ctx.fillStyle    = 'rgba(255,255,255,0.5)';
         ctx.textAlign    = 'right';
@@ -296,14 +469,12 @@ export class HUD {
     ctx.lineWidth   = 1.5;
     ctx.stroke();
 
-    // Title
     ctx.fillStyle    = '#FFFFFF';
     ctx.font         = 'bold 20px monospace';
     ctx.textAlign    = 'center';
     ctx.textBaseline = 'top';
     ctx.fillText('🎮  CONTROLS', cx, popY + 20);
 
-    // Divider
     ctx.strokeStyle = 'rgba(255,255,255,0.1)';
     ctx.lineWidth   = 1;
     ctx.beginPath();
@@ -311,12 +482,10 @@ export class HUD {
     ctx.lineTo(popX + popW - 20, popY + 52);
     ctx.stroke();
 
-    // --- Keyboard layout ---
-    const ks = 42;   // key size
-    const kg = 5;    // key gap
-    const kr = 6;    // key border radius
+    const ks = 42;
+    const kg = 5;
+    const kr = 6;
 
-    // Helper to draw one key
     const drawKey = (label, x, y, w = ks, h = ks, highlight = false) => {
       ctx.fillStyle = highlight ? 'rgba(74,144,226,0.6)' : 'rgba(255,255,255,0.10)';
       this._roundRect(ctx, x, y, w, h, kr);
@@ -324,7 +493,6 @@ export class HUD {
       ctx.strokeStyle = highlight ? 'rgba(74,144,226,0.9)' : 'rgba(255,255,255,0.25)';
       ctx.lineWidth   = 1.5;
       ctx.stroke();
-
       ctx.fillStyle    = '#FFFFFF';
       ctx.font         = `bold ${label.length > 3 ? '9' : '12'}px monospace`;
       ctx.textAlign    = 'center';
@@ -332,7 +500,6 @@ export class HUD {
       ctx.fillText(label, x + w / 2, y + h / 2);
     };
 
-    // Helper for action label
     const drawLabel = (text, x, y) => {
       ctx.fillStyle    = 'rgba(255,255,255,0.6)';
       ctx.font         = '12px monospace';
@@ -341,18 +508,14 @@ export class HUD {
       ctx.fillText(text, x, y);
     };
 
-    // --- WASD cluster ---
     const wasdX = popX + 44;
     const wasdY = popY + 80;
 
-    // Row 0: W
     drawKey('W', wasdX + ks + kg, wasdY, ks, ks, true);
-    // Row 1: A S D
     drawKey('A', wasdX,               wasdY + ks + kg, ks, ks, true);
     drawKey('S', wasdX + ks + kg,     wasdY + ks + kg, ks, ks);
     drawKey('D', wasdX + (ks + kg)*2, wasdY + ks + kg, ks, ks, true);
 
-    // Arrow keys cluster (offset right)
     const arrX = wasdX + (ks + kg) * 4;
     const arrY = wasdY;
     drawKey('↑', arrX + ks + kg, arrY,           ks, ks, true);
@@ -360,36 +523,30 @@ export class HUD {
     drawKey('↓', arrX + ks + kg, arrY + ks + kg, ks, ks);
     drawKey('→', arrX+(ks+kg)*2, arrY + ks + kg, ks, ks, true);
 
-    // Labels for movement
     const lblX = wasdX + (ks + kg) * 7 + 16;
     drawLabel('← Move Left',   lblX, wasdY + (ks + kg) + ks / 2);
     drawLabel('→ Move Right',  lblX, wasdY + (ks + kg) + ks / 2 + 22);
     drawLabel('↑ Jump',        lblX, wasdY + ks / 2);
 
-    // --- Space bar ---
     const spaceY = wasdY + (ks + kg) * 2 + 16;
     drawKey('SPACE', wasdX, spaceY, ks * 3 + kg * 2, 34, true);
     drawLabel('Jump', wasdX + ks * 3 + kg * 2 + 10, spaceY + 17);
 
-    // --- Mouse buttons ---
     const mouseX = popX + 44;
     const mouseY = spaceY + 34 + 20;
 
-    // Left mouse
     ctx.fillStyle = 'rgba(74,144,226,0.6)';
     this._roundRect(ctx, mouseX, mouseY, 32, 44, 8);
     ctx.fill();
     ctx.strokeStyle = 'rgba(74,144,226,0.9)';
     ctx.lineWidth   = 1.5;
     ctx.stroke();
-    // divider line
     ctx.beginPath();
     ctx.moveTo(mouseX + 16, mouseY);
     ctx.lineTo(mouseX + 16, mouseY + 44);
     ctx.strokeStyle = 'rgba(255,255,255,0.3)';
     ctx.lineWidth   = 1;
     ctx.stroke();
-    // highlight left half
     ctx.fillStyle = 'rgba(255,255,255,0.15)';
     this._roundRect(ctx, mouseX, mouseY, 16, 44, 8);
     ctx.fill();
@@ -402,13 +559,11 @@ export class HUD {
     drawLabel('Left Click — Attack', mouseX + 44, mouseY + 16);
     drawLabel('Right Click — Dash',  mouseX + 44, mouseY + 32);
 
-    // --- ESC key ---
     const escX = popX + popW - 44 - ks;
     const escY = popY + 80;
     drawKey('ESC', escX, escY, ks, ks * 0.75);
     drawLabel('Open / Close Settings', escX - 120, escY + ks * 0.75 / 2);
 
-    // Back button
     const backW = 100;
     const backH = 34;
     const backX = popX + 20;
@@ -580,9 +735,9 @@ export class HUD {
   _handleKeydown(e) {
     if (e.key === 'Escape' && this._hp > 0) {
       if (this._showControls) {
-        this._showControls = false;   // ESC from controls → back to settings
+        this._showControls = false;
       } else {
-        this._paused = !this._paused; // ESC from settings → toggle pause
+        this._paused = !this._paused;
         if (this._onPause) this._onPause();
       }
     }
@@ -593,7 +748,6 @@ export class HUD {
     const mx   = e.clientX - rect.left;
     const my   = e.clientY - rect.top;
 
-    // Gear button — always active while alive
     if (this._gearBtn && this._hp > 0) {
       const g = this._gearBtn;
       if (mx >= g.x && mx <= g.x + g.w && my >= g.y && my <= g.y + g.h) {
@@ -608,7 +762,6 @@ export class HUD {
     }
 
     if (this._paused) {
-      // Controls sub-page
       if (this._showControls) {
         const back = this._settingsBtns['back'];
         if (back && mx >= back.x && mx <= back.x + back.w && my >= back.y && my <= back.y + back.h) {
@@ -617,7 +770,6 @@ export class HUD {
         return;
       }
 
-      // Settings buttons
       const mb = this._settingsBtns.music;
       if (mb && mx >= mb.x && mx <= mb.x + mb.w && my >= mb.y && my <= mb.y + mb.h) {
         this._musicOn = !this._musicOn;
@@ -631,10 +783,9 @@ export class HUD {
         return;
       }
 
-      return; // swallow all other clicks while paused
+      return;
     }
 
-    // Retry button
     if (this._retryBtn && this._hp <= 0) {
       const b = this._retryBtn;
       if (mx >= b.x && mx <= b.x + b.w && my >= b.y && my <= b.y + b.h) {
