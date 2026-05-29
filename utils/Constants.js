@@ -160,6 +160,24 @@ export const STATE = {
   DASHING:   'DASHING',
 };
 
+// --- Mini-map ---
+export const MINIMAP_WIDTH             = 160;
+export const MINIMAP_HEIGHT            = 40;
+export const MINIMAP_PADDING           = 14;
+export const MINIMAP_BG                = 'rgba(0,0,0,0.5)';
+export const MINIMAP_BORDER            = 'rgba(255,255,255,0.15)';
+export const MINIMAP_PLAYER_COLOR      = '#4A90E2';
+export const MINIMAP_MOB_COLOR         = '#E24A4A';
+export const MINIMAP_BOSS_COLOR        = '#9B1DDB';
+export const MINIMAP_GROUND_COLOR      = 'rgba(45,90,39,0.8)';
+
+// --- Damage Numbers ---
+export const DMG_NUM_DURATION          = 0.9;
+export const DMG_NUM_RISE_SPEED        = 55;
+export const DMG_NUM_PLAYER_COLOR      = '#FF6644';
+export const DMG_NUM_MOB_COLOR         = '#FFFFFF';
+export const DMG_NUM_CRIT_COLOR        = '#FFD700';
+
 // --- Coins ---
 export const COINS_PER_LEVEL        = [2, 3, 5, 8, 10, 12];
 export const COINS_PER_LEVEL_EXTRA  = 2;
