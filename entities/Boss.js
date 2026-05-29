@@ -69,6 +69,16 @@ export class Boss extends Mob {
 
     this.hp = Math.max(0, this.hp - damage);
 
+    // Spawn floating damage number
+    if (this.onDamageNumber) {
+      this.onDamageNumber(
+        this.x + this.width / 2,
+        this.y,
+        damage,
+        false  // enemy hit
+      );
+    }
+
     const dir = this.x + this.width / 2 > sourceX ? 1 : -1;
     this.vx = dir * BOSS_KNOCKBACK_X;
     this.vy = BOSS_KNOCKBACK_Y;
