@@ -7,7 +7,21 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <canvas id="gameCanvas"></canvas>
+  <!-- Start Screen -->
+  <div id="startScreen">
+    <div class="stars" id="starsLayer"></div>
+    <div class="start-content">
+      <div class="game-title">
+        <span class="title-main">2D</span><span class="title-elo">ELO</span>
+      </div>
+      <p class="title-sub">COMBAT ARENA</p>
+      <div class="title-divider"></div>
+      <button id="playBtn">▶&nbsp;&nbsp;PLAY</button>
+      <p class="controls-hint">Move: A/D &nbsp;|&nbsp; Jump: W / Space &nbsp;|&nbsp; Attack: Left Click &nbsp;|&nbsp; Dash: Right Click</p>
+    </div>
+  </div>
+
+  <canvas id="gameCanvas" style="display:none;"></canvas>
   <script type="module" src="main.js"></script>
 </body>
 </html>

@@ -30,3 +30,135 @@ canvas {
   border: 2px solid #444;
   image-rendering: pixelated;
 }
+
+/* ============================================================
+   Start Screen
+   ============================================================ */
+
+#startScreen {
+  position: fixed;
+  inset: 0;
+  background: linear-gradient(180deg, #1a1a2e 0%, #16213e 60%, #0f1a30 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  overflow: hidden;
+}
+
+/* Static star dots generated via JS */
+.stars {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.star {
+  position: absolute;
+  background: rgba(255,255,255,0.55);
+  border-radius: 50%;
+  animation: twinkle var(--d, 3s) ease-in-out infinite alternate;
+}
+
+@keyframes twinkle {
+  from { opacity: 0.2; }
+  to   { opacity: 0.9; }
+}
+
+.start-content {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  text-align: center;
+}
+
+.game-title {
+  font-family: monospace;
+  font-size: clamp(72px, 12vw, 128px);
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  margin-bottom: 4px;
+  /* subtle glow pulse */
+  animation: titleGlow 2.4s ease-in-out infinite alternate;
+}
+
+.title-main {
+  color: #ffffff;
+  text-shadow: 0 0 30px rgba(74,144,226,0.6), 0 0 60px rgba(74,144,226,0.3);
+}
+
+.title-elo {
+  color: #F0C040;
+  text-shadow: 0 0 30px rgba(240,192,64,0.7), 0 0 60px rgba(240,192,64,0.3);
+}
+
+@keyframes titleGlow {
+  from { filter: brightness(1);   }
+  to   { filter: brightness(1.15); }
+}
+
+.title-sub {
+  font-family: monospace;
+  font-size: clamp(13px, 2vw, 18px);
+  letter-spacing: 0.45em;
+  color: rgba(255,255,255,0.4);
+  margin: 0 0 24px;
+  text-transform: uppercase;
+}
+
+.title-divider {
+  width: 220px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.25), transparent);
+  margin-bottom: 40px;
+}
+
+#playBtn {
+  font-family: monospace;
+  font-size: clamp(18px, 2.5vw, 24px);
+  font-weight: bold;
+  letter-spacing: 0.15em;
+  color: #ffffff;
+  background: linear-gradient(135deg, #1a4a82 0%, #2a6abf 100%);
+  border: 2px solid rgba(74,144,226,0.7);
+  border-radius: 10px;
+  padding: 16px 64px;
+  cursor: pointer;
+  box-shadow: 0 0 24px rgba(74,144,226,0.4), 0 4px 16px rgba(0,0,0,0.5);
+  transition: transform 0.1s ease, box-shadow 0.15s ease, background 0.15s ease;
+  outline: none;
+  margin-bottom: 32px;
+  animation: btnPulse 2s ease-in-out infinite;
+}
+
+#playBtn:hover {
+  background: linear-gradient(135deg, #2a5a9a 0%, #3a7adf 100%);
+  box-shadow: 0 0 40px rgba(74,144,226,0.65), 0 6px 20px rgba(0,0,0,0.5);
+  transform: translateY(-2px);
+  animation: none;
+}
+
+#playBtn:active {
+  transform: translateY(1px);
+  box-shadow: 0 0 16px rgba(74,144,226,0.3);
+}
+
+@keyframes btnPulse {
+  0%,100% { box-shadow: 0 0 24px rgba(74,144,226,0.4), 0 4px 16px rgba(0,0,0,0.5); }
+  50%      { box-shadow: 0 0 44px rgba(74,144,226,0.65), 0 4px 16px rgba(0,0,0,0.5); }
+}
+
+.controls-hint {
+  font-family: monospace;
+  font-size: clamp(10px, 1.3vw, 12px);
+  color: rgba(255,255,255,0.28);
+  letter-spacing: 0.05em;
+  margin: 0;
+}
+
+/* Hide canvas until game starts */
+#gameCanvas { display: none; }
