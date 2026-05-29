@@ -91,6 +91,9 @@ export class Mob {
     
     // Shielder-specific: blocking state
     this.isBlocking = false;
+
+    // Damage number callback: (worldX, worldY, amount, isPlayer) => void
+    this.onDamageNumber = null;
   }
 
   // -------------------------------------------------------
@@ -118,6 +121,16 @@ export class Mob {
     }
 
     this.hp = Math.max(0, this.hp - damage);
+
+    // Spawn floating damage number
+    if (this.onDamageNumber) {
+      this.onDamageNumber(
+        this.x + this.width / 2,
+        this.y,
+        damage,
+        false  // enemy hit — uses white colour
+      );
+    }
 
     // Knockback direction: away from attacker
     const dir = this.x + this.width / 2 > sourceX ? 1 : -1;
