@@ -88,6 +88,10 @@ export class Player {
     // --- NEW: Double jump ---
     this.maxJumps = 1;
     this.jumpsRemaining = 1;
+
+    // Damage number callback: set by CollisionSystem
+    // Signature: (worldX, worldY, amount, isPlayer) => void
+    this.onDamageNumber = null;
   }
 
   // -------------------------------------------------------
@@ -114,6 +118,16 @@ export class Player {
 
     this.hp = Math.max(0, this.hp - damage);
     this.invulnTimer = PLAYER_INVULN_DURATION;
+
+    // Spawn floating damage number
+    if (this.onDamageNumber) {
+      this.onDamageNumber(
+        this.x + this.width / 2,
+        this.y,
+        damage,
+        true   // isPlayer hit — uses red colour
+      );
+    }
 
     // Cancel dash on hit
     if (this.state === STATE.DASHING) {
