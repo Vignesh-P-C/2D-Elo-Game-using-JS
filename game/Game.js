@@ -23,7 +23,7 @@ export class Game {
     this.ctx    = canvas.getContext('2d');
 
     this.elo                 = ELO_START;
-    this.coins               = 0;       // session coin count
+    this.coins               = 0;
     this.doubleJumpUnlocked  = false;
 
     this.input  = new InputManager();
@@ -40,6 +40,11 @@ export class Game {
     if (previousScores.length > 0) this.hud._scores = [...previousScores];
 
     this.player = new Player(200, 200);
+
+    // Wire damage number callback on the player
+    this.player.onDamageNumber = (wx, wy, amount, isPlayer) => {
+      this._spawnDamageNumber(wx, wy, amount, isPlayer);
+    };
 
     this.levelManager = new LevelManager({
       canvas:             this.canvas,
@@ -114,6 +119,21 @@ export class Game {
       onHitEvent:      (e)  => this._handleHitEvent(e),
       onCoinCollected: ()   => { this.coins++; },
     });
+
+    // Wire damage number callbacks on all current mobs/boss
+    this._wireDamageNumbers();
+  }
+
+  /** Attach onDamageNumber to every enemy so hits spawn floating numbers. */
+  _wireDamageNumbers() {
+    const cb = (wx, wy, amount, isPlayer) => this._spawnDamageNumber(wx, wy, amount, isPlayer);
+    for (const mob of this.levelManager.mobs) mob.onDamageNumber = cb;
+    if (this.levelManager.boss) this.levelManager.boss.onDamageNumber = cb;
+  }
+
+  _spawnDamageNumber(wx, wy, amount, isPlayer) {
+    const offset = this.camera.getOffset(); // { x, y }
+    this.hud.spawnDamageNumber(wx, wy, amount, isPlayer, offset);
   }
 
   _addElo(amount)  { this.elo += amount; }
@@ -150,7 +170,7 @@ export class Game {
     this._lastTimestamp = timestamp;
     const dt = Math.min(rawDt || 0, DT_CAP);
 
-    // Hit pause
+    // Hit pause — freeze everything except rendering
     if (this._hitPauseTimer > 0) {
       this._hitPauseTimer -= dt;
       this._render();
@@ -158,7 +178,7 @@ export class Game {
       return;
     }
 
-    // Game pause — render only
+    // Game pause — FULLY stop all updates, render only
     if (this._paused) {
       this._render();
       requestAnimationFrame((ts) => this._loop(ts));
@@ -179,6 +199,9 @@ export class Game {
       this._syncCollisionSystem();
       this.collision.run();
       this.camera.update(dt, this.player);
+
+      // Re-wire damage numbers for any newly spawned enemies
+      this._wireDamageNumbers();
     } else {
       if (!this._scoreRecorded) {
         this._scoreRecorded = true;
@@ -194,6 +217,18 @@ export class Game {
       elo:   this.elo,
       level: this.levelManager.currentLevel,
       coins: this.coins,
+    });
+
+    // Push minimap data to HUD every frame
+    const ground = this.levelManager.ground;
+    this.hud.setMinimapData({
+      player:      this.player,
+      mobs:        this.levelManager.mobs,
+      boss:        this.levelManager.boss,
+      platforms:   this.levelManager.platforms,
+      worldWidth:  this.levelManager.worldWidth,
+      worldHeight: this.canvas.height,
+      groundY:     ground ? ground.y : this.canvas.height - 60,
     });
 
     this._render();
@@ -265,7 +300,12 @@ export class Game {
     ctx.restore();
 
     this.camera.reset(ctx);
-    this.hud.render(ctx, this.levelManager.message, this._messageAlpha);
+
+    // Camera offset for damage numbers (world → screen conversion)
+    const off = (this.camera.getOffset)
+      ? this.camera.getOffset()
+      : { x: -(this.camera.x ?? 0), y: -(this.camera.y ?? 0) };
+    this.hud.render(ctx, this.levelManager.message, this._messageAlpha, off.x, off.y);
   }
 
   _renderBackground(ctx, canvas) {
