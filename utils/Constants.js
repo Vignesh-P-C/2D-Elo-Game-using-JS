@@ -187,3 +187,66 @@ export const COIN_MIN_X_OFFSET      = 400;
 // 1.5x player height (56px) = 84px max above ground, min just off the ground
 export const COIN_MAX_GROUND_OFFSET = 84;
 export const COIN_MIN_GROUND_OFFSET = 20;
+
+// Add these constants to your existing Constants.js file
+// Insert after the SHIELDER section and before BOSS section
+
+// --- Archer ---
+export const ARCHER_SHOOT_RANGE        = 280;
+export const ARCHER_RETREAT_RANGE      = 120;
+export const ARCHER_PROJECTILE_SPEED   = 420;
+export const ARCHER_PROJECTILE_DAMAGE  = 18;
+export const ARCHER_ATTACK_COOLDOWN    = 2.8;
+export const ARCHER_HP_MULTIPLIER      = 0.8;
+export const ARCHER_SPEED_MULTIPLIER   = 0.85;
+export const COLOR_ARCHER              = '#FFB347';
+export const COLOR_ARCHER_OUTLINE      = '#CC7700';
+
+// --- Leaper ---
+export const LEAPER_LEAP_RANGE         = 200;
+export const LEAPER_LEAP_VX            = 380;
+export const LEAPER_LEAP_VY            = -480;
+export const LEAPER_LEAP_DAMAGE_MULT   = 1.5;
+export const LEAPER_LEAP_COOLDOWN      = 3.0;
+export const LEAPER_HP_MULTIPLIER      = 0.7;
+export const LEAPER_SPEED_MULTIPLIER   = 1.3;
+export const COLOR_LEAPER              = '#40BFA0';
+export const COLOR_LEAPER_OUTLINE      = '#1A6B58';
+
+// --- Berserker ---
+export const BERSERKER_WIDTH               = 44;
+export const BERSERKER_HEIGHT              = 60;
+export const BERSERKER_HP_MULTIPLIER       = 1.5;
+export const BERSERKER_SPEED_MULTIPLIER    = 0.9;
+export const BERSERKER_ENRAGE_THRESHOLD    = 0.5;
+export const BERSERKER_FLURRY_HITS         = 3;
+export const BERSERKER_FLURRY_HIT_INTERVAL = 0.2;
+export const BERSERKER_FLURRY_DAMAGE_MULT  = 0.7;
+export const BERSERKER_FLURRY_COOLDOWN     = 3.5;
+export const BERSERKER_ENRAGE_SPEED_MULT   = 1.4;
+export const COLOR_BERSERKER               = '#9966CC';
+export const COLOR_BERSERKER_ENRAGED       = '#FF3344';
+export const COLOR_BERSERKER_OUTLINE       = '#5511AA';
+
+// --- Healer ---
+export const HEALER_HP_MULTIPLIER      = 0.75;
+export const HEALER_SPEED_MULTIPLIER   = 1.15;
+export const HEALER_HEAL_RADIUS        = 180;
+export const HEALER_HEAL_AMOUNT        = 3;
+export const HEALER_HEAL_INTERVAL      = 2.0;
+export const HEALER_FLEE_RANGE         = 300;
+export const COLOR_HEALER              = '#88DD66';
+export const COLOR_HEALER_OUTLINE      = '#336622';
+
+// --- Summoner ---
+export const SUMMONER_WIDTH            = 44;
+export const SUMMONER_HEIGHT           = 58;
+export const SUMMONER_HP_MULTIPLIER    = 1.2;
+export const SUMMONER_SPEED_MULTIPLIER = 0.75;
+export const SUMMONER_SUMMON_COOLDOWN  = 6.0;
+export const SUMMONER_MAX_SUMMONS      = 3;
+export const SUMMONER_CAST_DURATION    = 1.2;
+export const SUMMONER_CAST_DMG_MULT    = 0.5;
+export const COLOR_SUMMONER            = '#FF7799';
+export const COLOR_SUMMONER_OUTLINE    = '#CC2255';
+export const COLOR_SUMMONER_CAST       = '#FFAACC';
