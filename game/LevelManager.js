@@ -1,11 +1,11 @@
 // ============================================================
-// LevelManager.js — Level configuration, mob spawning,
-// boss spawning, and level progression.
+// LevelManager.js — Level configuration with 5 new enemy types
 // ============================================================
 
 import { Mob        } from '../entities/Mob.js';
 import { Boss       } from '../entities/Boss.js';
 import { HealingOrb } from '../entities/Projectile.js';
+import { Projectile } from '../entities/Projectile.js';
 import { Coin       } from '../entities/Coin.js';
 import {
   LEVEL_WORLD_BASE_WIDTH, LEVEL_WORLD_WIDTH_STEP,
@@ -31,14 +31,15 @@ export class LevelManager {
 
     this.currentLevel = 1;
 
-    // Live entity arrays (Game.js reads these)
-    this.mobs      = [];
-    this.boss      = null;
-    this.orbs      = [];
-    this.coins     = [];   // NEW: collectible coins
-    this.platforms = [];
-    this.ground    = null;
-    this.worldWidth = 0;
+    // Live entity arrays
+    this.mobs        = [];
+    this.boss        = null;
+    this.orbs        = [];
+    this.coins       = [];
+    this.projectiles = [];  // NEW: for archer projectiles
+    this.platforms   = [];
+    this.ground      = null;
+    this.worldWidth  = 0;
 
     // Phase tracking
     this._bossSpawned   = false;
@@ -67,6 +68,10 @@ export class LevelManager {
     this.orbs.push(new HealingOrb(x, y));
   }
 
+  spawnProjectile(opts) {
+    this.projectiles.push(new Projectile(opts));
+  }
+
   update(dt) {
     this.mobs = this.mobs.filter(m => !m.remove);
 
@@ -77,7 +82,10 @@ export class LevelManager {
     for (const orb of this.orbs) orb.update(dt);
     this.orbs = this.orbs.filter(o => o.active);
 
-    // Update coins (collection pop animation)
+    // Update projectiles (NEW)
+    for (const proj of this.projectiles) proj.update(dt);
+    this.projectiles = this.projectiles.filter(p => p.active);
+
     for (const coin of this.coins) coin.update(dt);
     this.coins = this.coins.filter(c => c.active || c._collecting);
 
@@ -126,7 +134,8 @@ export class LevelManager {
     this.mobs         = this._spawnMobs(level, canvas);
     this.boss         = null;
     this.orbs         = [];
-    this.coins        = this._spawnCoins(level, canvas);  // NEW
+    this.projectiles  = [];  // Reset projectiles for new level
+    this.coins        = this._spawnCoins(level, canvas);
     this._bossSpawned   = false;
     this._levelComplete = false;
     this._levelEndTimer = -1;
@@ -135,6 +144,9 @@ export class LevelManager {
     this.player.y  = canvas.height - LEVEL_GROUND_THICKNESS - this.player.height - 2;
     this.player.vx = 0;
     this.player.vy = 0;
+
+    // Wire callbacks on all mobs
+    this._wireMobCallbacks();
 
     this._showMessage(`Level ${level}`);
   }
@@ -169,9 +181,46 @@ export class LevelManager {
       const y = groundY - 55 - 2;
 
       let type = 'normal';
-      if (level >= 4) {
+
+      // Progression: introduce new types at their level
+      if (level >= 9) {
         const roll = Math.random();
-        if (roll < 0.25)      type = 'shielder';
+        if (roll < 0.1)      type = 'summoner';
+        else if (roll < 0.2) type = 'healer';
+        else if (roll < 0.3) type = 'berserker';
+        else if (roll < 0.4) type = 'leaper';
+        else if (roll < 0.5) type = 'archer';
+        else if (roll < 0.65) type = 'shielder';
+        else if (roll < 0.8) type = 'speeder';
+      } else if (level >= 8) {
+        const roll = Math.random();
+        if (roll < 0.12)     type = 'healer';
+        else if (roll < 0.25) type = 'berserker';
+        else if (roll < 0.38) type = 'leaper';
+        else if (roll < 0.5)  type = 'archer';
+        else if (roll < 0.65) type = 'shielder';
+        else if (roll < 0.8)  type = 'speeder';
+      } else if (level >= 7) {
+        const roll = Math.random();
+        if (roll < 0.12)     type = 'berserker';
+        else if (roll < 0.24) type = 'leaper';
+        else if (roll < 0.36) type = 'archer';
+        else if (roll < 0.5)  type = 'shielder';
+        else if (roll < 0.75) type = 'speeder';
+      } else if (level >= 6) {
+        const roll = Math.random();
+        if (roll < 0.15)     type = 'leaper';
+        else if (roll < 0.3)  type = 'archer';
+        else if (roll < 0.45) type = 'shielder';
+        else if (roll < 0.7)  type = 'speeder';
+      } else if (level >= 5) {
+        const roll = Math.random();
+        if (roll < 0.2)      type = 'archer';
+        else if (roll < 0.35) type = 'shielder';
+        else if (roll < 0.6)  type = 'speeder';
+      } else if (level >= 4) {
+        const roll = Math.random();
+        if (roll < 0.3)      type = 'shielder';
         else if (roll < 0.5)  type = 'speeder';
       } else if (level >= 3) {
         if (Math.random() < 0.3) type = 'speeder';
@@ -183,12 +232,7 @@ export class LevelManager {
     return mobs;
   }
 
-  /**
-   * Spawn coins at random reachable positions for this level.
-   * Heights range from ground level up to single-jump height (~250px above ground).
-   */
   _spawnCoins(level, canvas) {
-    // Determine count
     const idx   = level - 1;
     let count;
     if (idx < COINS_PER_LEVEL.length) {
@@ -205,16 +249,50 @@ export class LevelManager {
     const step    = (maxX - minX) / count;
 
     for (let i = 0; i < count; i++) {
-      // Spread evenly with jitter so coins don't cluster
       const x = minX + i * step + randFloat(0, step * 0.6);
-      // Random height: from near-ground up to single-jump reachable
       const aboveGround = randFloat(COIN_MIN_GROUND_OFFSET, COIN_MAX_GROUND_OFFSET);
       const y = groundY - aboveGround - COIN_HEIGHT;
-
       coins.push(new Coin(x, y));
     }
 
     return coins;
+  }
+
+  _wireMobCallbacks() {
+    const damageCb = (wx, wy, amount, isPlayer) => {
+      // This callback will be invoked from Game.js via _wireDamageNumbers
+    };
+
+    for (const mob of this.mobs) {
+      // Archer: fire projectile callback
+      if (mob.type === 'archer') {
+        mob.onFireProjectile = (x, y, vx, vy, damage) => {
+          this.spawnProjectile({
+            x, y, vx, vy, damage,
+            owner: 'mob',
+            radius: 8,
+            worldWidth: this.worldWidth,
+            worldHeight: this.canvas.height,
+          });
+        };
+      }
+
+      // Healer: pass mob reference for healing
+      if (mob.type === 'healer') {
+        mob.mobsRef = this.mobs;
+      }
+
+      // Summoner: summon callback and mob reference for counting
+      if (mob.type === 'summoner') {
+        mob.mobsRef = this.mobs;
+        mob.onSummonMob = (x, y, type) => {
+          const summon = new Mob(x, y, this.currentLevel, type);
+          summon.summonedBy = mob.id; // Tag this summon
+          summon.mobsRef = this.mobs; // For healer-like future types
+          this.mobs.push(summon);
+        };
+      }
+    }
   }
 
   _spawnBoss() {
