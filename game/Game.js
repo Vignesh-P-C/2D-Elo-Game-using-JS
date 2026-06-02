@@ -1,5 +1,74 @@
 // ============================================================
-// Game.js — Top-level orchestrator.
+// Game.js — MODIFICATIONS for projectiles
+// ============================================================
+
+// CHANGE 1: In _buildCollisionSystem(), add projectiles parameter:
+_buildCollisionSystem() {
+    this.collision = new CollisionSystem({
+      player:          this.player,
+      mobs:            this.levelManager.mobs,
+      boss:            this.levelManager.boss,
+      orbs:            this.levelManager.orbs,
+      coins:           this.levelManager.coins,
+      projectiles:     this.levelManager.projectiles,  // ADD THIS LINE
+      platforms:       this.levelManager.platforms,
+      ground:          this.levelManager.ground,
+      worldWidth:      this.levelManager.worldWidth,
+      worldHeight:     this.canvas.height,
+      onEloGain:       (a)  => this._addElo(a),
+      onSpawnOrb:      (x, y) => this.levelManager.spawnOrb(x, y),
+      onHitEvent:      (e)  => this._handleHitEvent(e),
+      onCoinCollected: ()   => { this.coins++; },
+    });
+
+    this._wireDamageNumbers();
+  }
+
+// CHANGE 2: In _syncCollisionSystem(), add projectiles:
+_syncCollisionSystem() {
+    this.collision.mobs       = this.levelManager.mobs;
+    this.collision.boss       = this.levelManager.boss;
+    this.collision.orbs       = this.levelManager.orbs;
+    this.collision.coins      = this.levelManager.coins;
+    this.collision.projectiles = this.levelManager.projectiles;  // ADD THIS LINE
+    this.collision.platforms  = this.levelManager.platforms;
+    this.collision.ground     = this.levelManager.ground;
+    this.collision.worldWidth = this.levelManager.worldWidth;
+  }
+
+// CHANGE 3: In _render(), add projectile rendering after mobs but before player:
+_render() {
+    const ctx    = this.ctx;
+    const canvas = this.canvas;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    this._renderBackground(ctx, canvas);
+
+    ctx.save();
+    this.camera.apply(ctx);
+
+    this._renderGround(ctx);
+    this._renderPlatforms(ctx);
+
+    for (const orb  of this.levelManager.orbs)        orb.render(ctx);
+    for (const coin of this.levelManager.coins)       coin.render(ctx);
+    for (const proj of this.levelManager.projectiles) proj.render(ctx);  // ADD THIS LINE
+    for (const mob  of this.levelManager.mobs)        mob.render(ctx);
+    if (this.levelManager.boss) this.levelManager.boss.render(ctx);
+    this.player.render(ctx);
+
+    ctx.restore();
+
+    this.camera.reset(ctx);
+
+    const off = (this.camera.getOffset)
+      ? this.camera.getOffset()
+      : { x: -(this.camera.x ?? 0), y: -(this.camera.y ?? 0) };
+    this.hud.render(ctx, this.levelManager.message, this._messageAlpha, off.x, off.y);
+  }
+
+// ============================================================
+// FULL Game.js with all modifications integrated
 // ============================================================
 
 import { Player          } from '../entities/Player.js';
@@ -41,7 +110,6 @@ export class Game {
 
     this.player = new Player(200, 200);
 
-    // Wire damage number callback on the player
     this.player.onDamageNumber = (wx, wy, amount, isPlayer) => {
       this._spawnDamageNumber(wx, wy, amount, isPlayer);
     };
@@ -54,7 +122,6 @@ export class Game {
       onDoubleJumpUnlock: ()   => this._unlockDoubleJump(),
     });
 
-    // Audio
     this._isBossLevel  = false;
     this._musicEnabled = true;
     window.addEventListener('keydown',     () => this._initAudio(), { once: true });
@@ -110,6 +177,7 @@ export class Game {
       boss:            this.levelManager.boss,
       orbs:            this.levelManager.orbs,
       coins:           this.levelManager.coins,
+      projectiles:     this.levelManager.projectiles,
       platforms:       this.levelManager.platforms,
       ground:          this.levelManager.ground,
       worldWidth:      this.levelManager.worldWidth,
@@ -120,11 +188,9 @@ export class Game {
       onCoinCollected: ()   => { this.coins++; },
     });
 
-    // Wire damage number callbacks on all current mobs/boss
     this._wireDamageNumbers();
   }
 
-  /** Attach onDamageNumber to every enemy so hits spawn floating numbers. */
   _wireDamageNumbers() {
     const cb = (wx, wy, amount, isPlayer) => this._spawnDamageNumber(wx, wy, amount, isPlayer);
     for (const mob of this.levelManager.mobs) mob.onDamageNumber = cb;
@@ -170,7 +236,6 @@ export class Game {
     this._lastTimestamp = timestamp;
     const dt = Math.min(rawDt || 0, DT_CAP);
 
-    // Hit pause — freeze everything except rendering
     if (this._hitPauseTimer > 0) {
       this._hitPauseTimer -= dt;
       this._render();
@@ -178,7 +243,6 @@ export class Game {
       return;
     }
 
-    // Game pause — FULLY stop all updates, render only
     if (this._paused) {
       this._render();
       requestAnimationFrame((ts) => this._loop(ts));
@@ -200,7 +264,6 @@ export class Game {
       this.collision.run();
       this.camera.update(dt, this.player);
 
-      // Re-wire damage numbers for any newly spawned enemies
       this._wireDamageNumbers();
     } else {
       if (!this._scoreRecorded) {
@@ -219,7 +282,6 @@ export class Game {
       coins: this.coins,
     });
 
-    // Push minimap data to HUD every frame
     const ground = this.levelManager.ground;
     this.hud.setMinimapData({
       player:      this.player,
@@ -236,13 +298,14 @@ export class Game {
   }
 
   _syncCollisionSystem() {
-    this.collision.mobs       = this.levelManager.mobs;
-    this.collision.boss       = this.levelManager.boss;
-    this.collision.orbs       = this.levelManager.orbs;
-    this.collision.coins      = this.levelManager.coins;
-    this.collision.platforms  = this.levelManager.platforms;
-    this.collision.ground     = this.levelManager.ground;
-    this.collision.worldWidth = this.levelManager.worldWidth;
+    this.collision.mobs        = this.levelManager.mobs;
+    this.collision.boss        = this.levelManager.boss;
+    this.collision.orbs        = this.levelManager.orbs;
+    this.collision.coins       = this.levelManager.coins;
+    this.collision.projectiles = this.levelManager.projectiles;
+    this.collision.platforms   = this.levelManager.platforms;
+    this.collision.ground      = this.levelManager.ground;
+    this.collision.worldWidth  = this.levelManager.worldWidth;
   }
 
   _updateMessage(dt) {
@@ -291,9 +354,10 @@ export class Game {
     this._renderGround(ctx);
     this._renderPlatforms(ctx);
 
-    for (const orb  of this.levelManager.orbs)  orb.render(ctx);
-    for (const coin of this.levelManager.coins)  coin.render(ctx);
-    for (const mob  of this.levelManager.mobs)   mob.render(ctx);
+    for (const orb  of this.levelManager.orbs)        orb.render(ctx);
+    for (const coin of this.levelManager.coins)       coin.render(ctx);
+    for (const proj of this.levelManager.projectiles) proj.render(ctx);
+    for (const mob  of this.levelManager.mobs)        mob.render(ctx);
     if (this.levelManager.boss) this.levelManager.boss.render(ctx);
     this.player.render(ctx);
 
@@ -301,7 +365,6 @@ export class Game {
 
     this.camera.reset(ctx);
 
-    // Camera offset for damage numbers (world → screen conversion)
     const off = (this.camera.getOffset)
       ? this.camera.getOffset()
       : { x: -(this.camera.x ?? 0), y: -(this.camera.y ?? 0) };
@@ -362,4 +425,3 @@ export class Game {
     this.hud.resize(this.canvas);
   }
 }
-
