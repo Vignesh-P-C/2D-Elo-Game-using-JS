@@ -144,6 +144,10 @@ export class HUD {
     this.canvas = canvas;
     this.canvas.addEventListener('click', this._boundClick);
   }
+  destroy() {
+  this.canvas.removeEventListener('click', this._boundClick);
+  window.removeEventListener('keydown', this._boundKeydown);
+}
 
   // -------------------------------------------------------
   // Damage Numbers

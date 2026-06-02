@@ -51,7 +51,17 @@ export const SHIELDER_HEIGHT           = 58;
 export const COLOR_SHIELDER            = '#4169E1';
 export const COLOR_SHIELDER_OUTLINE    = '#1E3A8A';
 export const COLOR_SHIELDER_SHIELD     = '#87CEEB';
-
+// --- Shielder Enemy ---
+export const SHIELDER_WIDTH            = 45;
+export const SHIELDER_HEIGHT           = 58;
+export const COLOR_SHIELDER            = '#4169E1';
+export const COLOR_SHIELDER_OUTLINE    = '#1E3A8A';
+export const COLOR_SHIELDER_SHIELD     = '#87CEEB';
+// Shield toggles on/off randomly; both phases stay above 0.25s
+export const SHIELDER_SHIELD_MIN_UP    = 0.55;  // shortest time shield stays UP
+export const SHIELDER_SHIELD_MAX_UP    = 1.1;   // longest  time shield stays UP
+export const SHIELDER_SHIELD_MIN_DOWN  = 0.3;   // shortest attack window
+export const SHIELDER_SHIELD_MAX_DOWN  = 0.75;  // longest  attack window
 // --- Boss ---
 export const BOSS_WIDTH                = 60;
 export const BOSS_HEIGHT               = 80;

@@ -63,7 +63,8 @@ export class Game {
     this._hitPauseTimer = 0;
     this._scoreRecorded = false;
 
-    window.addEventListener('resize', () => this._onResize());
+    this._boundResize = () => this._onResize();
+window.addEventListener('resize', this._boundResize);
   }
 
   // -------------------------------------------------------
@@ -81,10 +82,12 @@ export class Game {
 
   getSessionScores() { return this.hud._scores; }
 
-  destroy() {
-    this._running = false;
-    audioManager.stopMusic();
-  }
+destroy() {
+  this._running = false;
+  audioManager.stopMusic();
+  this.hud.destroy();
+  window.removeEventListener('resize', this._boundResize);
+}
 
   // -------------------------------------------------------
   // Private

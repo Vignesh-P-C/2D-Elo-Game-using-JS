@@ -11,6 +11,8 @@ import {
   MOB_ELO_VALUE,
   SPEEDER_SPEED_MULTIPLIER, SPEEDER_HP_MULTIPLIER,
   SHIELDER_WIDTH, SHIELDER_HEIGHT,
+  SHIELDER_SHIELD_MIN_UP, SHIELDER_SHIELD_MAX_UP,
+  SHIELDER_SHIELD_MIN_DOWN, SHIELDER_SHIELD_MAX_DOWN,
   ARCHER_SHOOT_RANGE, ARCHER_RETREAT_RANGE,
   ARCHER_PROJECTILE_SPEED, ARCHER_PROJECTILE_DAMAGE, ARCHER_ATTACK_COOLDOWN,
   ARCHER_HP_MULTIPLIER, ARCHER_SPEED_MULTIPLIER,
@@ -109,7 +111,13 @@ export class Mob {
     this._deathScaleY   = 1;
 
     // Shielder
-    this.isBlocking = false;
+    // Shielder
+this.isBlocking    = false;
+// Shield starts UP; timer drives the random toggle
+this._shieldActive = type === 'shielder';
+this._shieldTimer  = type === 'shielder'
+  ? SHIELDER_SHIELD_MIN_UP + Math.random() * (SHIELDER_SHIELD_MAX_UP - SHIELDER_SHIELD_MIN_UP)
+  : 0;
 
     // Archer
     this.onFireProjectile = null;
@@ -265,6 +273,21 @@ export class Mob {
       this._healPulseVisual = Math.max(0, this._healPulseVisual - dt * 1.5);
     }
 
+        // Shielder: randomly toggle shield between up/down phases
+    if (this.type === 'shielder') {
+      this._shieldTimer -= dt;
+      if (this._shieldTimer <= 0) {
+        this._shieldActive = !this._shieldActive;
+        if (this._shieldActive) {
+          // Shield rising — hold it up for a random duration
+          this._shieldTimer = SHIELDER_SHIELD_MIN_UP + Math.random() * (SHIELDER_SHIELD_MAX_UP - SHIELDER_SHIELD_MIN_UP);
+        } else {
+          // Shield dropping — hold it down for a random duration (the attack window)
+          this._shieldTimer = SHIELDER_SHIELD_MIN_DOWN + Math.random() * (SHIELDER_SHIELD_MAX_DOWN - SHIELDER_SHIELD_MIN_DOWN);
+        }
+      }
+    }
+
     // AI
     this._runAI(dt, player);
 
@@ -306,7 +329,8 @@ export class Mob {
     if (this.type === 'shielder') {
       const playerIsInFront = (this.facing === 1 && playCX > mobCX) ||
                               (this.facing === -1 && playCX < mobCX);
-      this.isBlocking = playerIsInFront && this.state !== STATE.ATTACKING;
+      // Block only when the shield phase is active AND player is in front
+      this.isBlocking = playerIsInFront && this._shieldActive && this.state !== STATE.ATTACKING;
     }
 
     if (dist <= MOB_ATTACK_RANGE && this._attackCDTimer <= 0) {
@@ -725,7 +749,7 @@ export class Mob {
   }
 
   _renderShielderOverlay(ctx) {
-    if (!this.isBlocking) return;
+    if (!this._shieldActive) return;
     const shieldX = this.facing === 1 ? this.x + this.width : this.x - 8;
     const shieldY = this.y + this.height * 0.2;
     const shieldH = this.height * 0.6;
