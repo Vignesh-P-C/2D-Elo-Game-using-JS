@@ -1,21 +1,76 @@
 // ============================================================
-// CollisionSystem.js — All AABB collision detection and resolution.
+// CollisionSystem.js — MODIFICATIONS for projectiles
+// ============================================================
+
+// CHANGE 1: Update constructor to include projectiles parameter
+// Replace:
+//   constructor({ player, mobs, boss, orbs, coins, platforms, ground, worldWidth, worldHeight, onEloGain, onSpawnOrb, onHitEvent, onCoinCollected })
+// With:
+constructor({ player, mobs, boss, orbs, coins, projectiles, platforms, ground, worldWidth, worldHeight, onEloGain, onSpawnOrb, onHitEvent, onCoinCollected }) {
+    this.player         = player;
+    this.mobs           = mobs;
+    this.boss           = boss;
+    this.orbs           = orbs       || [];
+    this.coins          = coins      || [];
+    this.projectiles    = projectiles || [];  // ADD THIS LINE
+    this.platforms      = platforms;
+    this.ground         = ground;
+    this.worldWidth     = worldWidth;
+    this.worldHeight    = worldHeight;
+    this.onEloGain      = onEloGain      || (() => {});
+    this.onSpawnOrb     = onSpawnOrb     || (() => {});
+    this.onHitEvent     = onHitEvent     || (() => {});
+    this.onCoinCollected = onCoinCollected || (() => {});
+  }
+
+// CHANGE 2: In run() method, add call to _resolveProjectileHits()
+// Add this line after this._resolveAttacks(); and before this._resolveOrbPickups();
+run() {
+    this._resolveEntityVsGround(this.player);
+    for (const mob of this.mobs) {
+      if (mob.state !== STATE.DEAD) this._resolveEntityVsGround(mob);
+    }
+    if (this.boss && this.boss.state !== STATE.DEAD) {
+      this._resolveEntityVsGround(this.boss);
+    }
+    this._resolveAttacks();
+    this._resolveProjectileHits();  // ADD THIS LINE
+    this._resolveOrbPickups();
+    this._resolveCoinPickups();
+  }
+
+// CHANGE 3: Add new method _resolveProjectileHits() after _resolveAttacks()
+_resolveProjectileHits() {
+    if (!this.player.alive) return;
+    for (const proj of this.projectiles) {
+      if (!proj.active || proj.owner !== 'mob') continue;
+      if (aabbOverlap(proj.bounds, this.player.bounds)) {
+        this.player.takeHit(proj.damage, proj.x);
+        proj.hit();
+        this.onHitEvent({ type: 'playerHit', isBoss: false });
+      }
+    }
+}
+
+// ============================================================
+// Full CollisionSystem.js file with modifications
 // ============================================================
 
 import { aabbOverlap, aabbResolve } from '../utils/MathUtils.js';
 import { STATE, PLAYER_ATTACK_DAMAGE } from '../utils/Constants.js';
 
 export class CollisionSystem {
-  constructor({ player, mobs, boss, orbs, coins, platforms, ground, worldWidth, worldHeight, onEloGain, onSpawnOrb, onHitEvent, onCoinCollected }) {
-    this.player      = player;
-    this.mobs        = mobs;
-    this.boss        = boss;
-    this.orbs        = orbs  || [];
-    this.coins       = coins || [];
-    this.platforms   = platforms;
-    this.ground      = ground;
-    this.worldWidth  = worldWidth;
-    this.worldHeight = worldHeight;
+  constructor({ player, mobs, boss, orbs, coins, projectiles, platforms, ground, worldWidth, worldHeight, onEloGain, onSpawnOrb, onHitEvent, onCoinCollected }) {
+    this.player         = player;
+    this.mobs           = mobs;
+    this.boss           = boss;
+    this.orbs           = orbs       || [];
+    this.coins          = coins      || [];
+    this.projectiles    = projectiles || [];
+    this.platforms      = platforms;
+    this.ground         = ground;
+    this.worldWidth     = worldWidth;
+    this.worldHeight    = worldHeight;
     this.onEloGain      = onEloGain      || (() => {});
     this.onSpawnOrb     = onSpawnOrb     || (() => {});
     this.onHitEvent     = onHitEvent     || (() => {});
@@ -33,6 +88,7 @@ export class CollisionSystem {
     }
 
     this._resolveAttacks();
+    this._resolveProjectileHits();
     this._resolveOrbPickups();
     this._resolveCoinPickups();
   }
@@ -144,6 +200,22 @@ export class CollisionSystem {
     }
     if (this.boss && !this.boss?.attackHitbox) {
       if (this.boss) this.boss._playerHitThisSwing = false;
+    }
+  }
+
+  // -------------------------------------------------------
+  // Projectile hit detection (NEW)
+  // -------------------------------------------------------
+
+  _resolveProjectileHits() {
+    if (!this.player.alive) return;
+    for (const proj of this.projectiles) {
+      if (!proj.active || proj.owner !== 'mob') continue;
+      if (aabbOverlap(proj.bounds, this.player.bounds)) {
+        this.player.takeHit(proj.damage, proj.x);
+        proj.hit();
+        this.onHitEvent({ type: 'playerHit', isBoss: false });
+      }
     }
   }
 
