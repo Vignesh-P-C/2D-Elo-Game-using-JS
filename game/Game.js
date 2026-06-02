@@ -362,3 +362,4 @@ export class Game {
     this.hud.resize(this.canvas);
   }
 }
+
