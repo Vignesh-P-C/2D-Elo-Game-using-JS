@@ -105,6 +105,17 @@ index.html
 main.js                     # Entry point — start screen, game lifecycle, retry flow
 style.css
 │
+├── assets/
+│   └── audio/
+│       ├── music_normal.mp3    # Background track for standard levels
+│       └── music_boss.mp3      # Swapped in automatically on boss spawn
+│
+├── docs/
+│   ├── 2D_ELO_Game_Product_Checklist.xlsx  # Feature tracking and release checklist
+│   ├── implementation_guide.md             # Step-by-step integration notes for new systems
+│   ├── quick_reference.md                  # Per-file change summaries
+│   └── stats_reference.md                  # Enemy stats, multipliers, and progression tables
+│
 ├── entities/
 │   ├── Player.js           # Controller: movement, dash, attack, double jump, i-frames
 │   ├── Mob.js              # 8-type enemy with per-type AI state machines
