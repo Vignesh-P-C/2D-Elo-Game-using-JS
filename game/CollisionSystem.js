@@ -192,6 +192,6 @@ export class CollisionSystem {
   }
 
   _playerDamage() {
-    return player.attackDamage;
+    return this.player.attackDamage;
   }
 }
