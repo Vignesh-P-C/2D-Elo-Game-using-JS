@@ -1,4 +1,5 @@
 import { aabbOverlap, aabbResolve } from '../utils/MathUtils.js';
+import { STATE } from '../utils/Constants.js';
 
 export class CollisionSystem {
   constructor({ player, mobs, boss, orbs, coins, projectiles, platforms, ground, worldWidth, worldHeight, onEloGain, onSpawnOrb, onHitEvent, onCoinCollected }) {
