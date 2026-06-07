@@ -47,6 +47,12 @@ export class HUD {
     this._paused       = false;
     this._musicOn      = true;
     this._showControls = false;
+        // ── ADD ──────────────────────────────────────────────────────────────────
+    this._onShop      = null;
+    this._shieldActive = false;
+    this._shieldTimer  = 0;
+    this._damageMult   = 1.0;
+    // ── END ADD ──────────────────────────────────────────────────────────────
 
     this._settingsBtns = {};
 
@@ -70,6 +76,9 @@ export class HUD {
   setRetryCallback(fn)       { this._onRetry       = fn; }
   setPauseCallback(fn)       { this._onPause       = fn; }
   setMusicToggleCallback(fn) { this._onMusicToggle = fn; }
+  // ── ADD ──────────────────────────────────────────────────────────────────
+  setShopCallback(fn) { this._onShop = fn; }
+  // ── END ADD ──────────────────────────────────────────────────────────────
   setPaused(paused)          { this._paused = paused; }
 
   recordScore(elo, level) {
@@ -111,6 +120,11 @@ export class HUD {
     this._elo   = state.elo;
     this._level = state.level;
     this._coins = state.coins ?? 0;
+        // ── ADD ──────────────────────────────────────────────────────────────────
+    this._shieldActive = state.shieldActive ?? false;
+    this._shieldTimer  = state.shieldTimer  ?? 0;
+    this._damageMult   = state.damageMult   ?? 1.0;
+    // ── END ADD ──────────────────────────────────────────────────────────────
     this.healthBar.update(state.hp, dt);
     this.eloBar.update(state.elo, dt);
 
@@ -280,7 +294,7 @@ export class HUD {
     const pad    = HUD_PADDING;
     const rowH   = HUD_BAR_HEIGHT + 10;
     const panelW = HUD_BAR_WIDTH + 80;
-    const panelH = rowH * 2 + 56;
+    const panelH = rowH * 2 + 80;
 
     ctx.save();
     ctx.fillStyle = COLOR_HUD_BG;
@@ -301,6 +315,15 @@ export class HUD {
     ctx.fillStyle = '#FFD700';
     ctx.fillText(`🪙 ${this._coins}`, pad, pad + rowH * 2 + 24);
     ctx.restore();
+        if (this._shieldActive) {
+      ctx.fillStyle = '#87CEEB';
+      ctx.fillText(`🛡️ ${Math.ceil(this._shieldTimer)}s`, pad, pad + rowH * 2 + 44);
+    }
+    if (this._damageMult > 1.0) {
+      ctx.fillStyle = '#FFD700';
+      const col = this._shieldActive ? pad + 70 : pad;
+      ctx.fillText(`⚔️ ×${this._damageMult.toFixed(2)}`, col, pad + rowH * 2 + 44);
+    }
   }
 
   // -------------------------------------------------------
@@ -393,7 +416,7 @@ export class HUD {
       { key: 'music',    label: this._musicOn ? '🔊  Music: ON'  : '🔇  Music: OFF', active: this._musicOn,  disabled: false },
       { key: 'controls', label: '🎮  Controls',                                       active: false,          disabled: false },
       { key: 'sfx',      label: '🔔  Sound FX: Soon™',                                active: false,          disabled: true  },
-      { key: 'shop',     label: '🛒  Shop: Coming Soon',                               active: false,          disabled: true  },
+      { key: 'shop', label: '🛒  Shop',                                               active: false, disabled: false },
       { key: 'build',    label: '⚔️  Switch Build: Coming Soon',                      active: false,          disabled: true  },
     ];
 
@@ -786,7 +809,12 @@ export class HUD {
         this._showControls = true;
         return;
       }
-
+            const shb = this._settingsBtns.shop;
+      if (shb && mx >= shb.x && mx <= shb.x + shb.w && my >= shb.y && my <= shb.y + shb.h) {
+        this._paused = false;      // Close settings popup
+        if (this._onShop) this._onShop();
+        return;
+      }
       return;
     }
 

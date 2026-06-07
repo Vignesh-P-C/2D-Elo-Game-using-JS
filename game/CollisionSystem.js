@@ -1,5 +1,4 @@
 import { aabbOverlap, aabbResolve } from '../utils/MathUtils.js';
-import { STATE, PLAYER_ATTACK_DAMAGE } from '../utils/Constants.js';
 
 export class CollisionSystem {
   constructor({ player, mobs, boss, orbs, coins, projectiles, platforms, ground, worldWidth, worldHeight, onEloGain, onSpawnOrb, onHitEvent, onCoinCollected }) {
@@ -192,6 +191,6 @@ export class CollisionSystem {
   }
 
   _playerDamage() {
-    return PLAYER_ATTACK_DAMAGE;
+    return player.attackDamage;
   }
 }

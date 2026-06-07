@@ -12,6 +12,7 @@ import {
   COLOR_PLATFORM, COLOR_PLATFORM_EDGE,
   LEVEL_GROUND_THICKNESS,
 } from '../utils/Constants.js';
+import { Shop } from '../ui/Shop.js';
 
 export class Game {
   constructor(canvas, previousScores = [], onRetry = null) {
@@ -25,7 +26,11 @@ export class Game {
     this.input  = new InputManager();
     this.camera = new Camera(canvas.width, canvas.height);
     this.hud    = new HUD(canvas);
-
+    this.shop                 = new Shop(canvas);
+    this.shop.onClose         = () => this._closeShop();
+    this.shop.onPurchase      = (item) => this._handleShopPurchase(item);
+    this._shopOpen            = false;
+    this._permanentPurchaseIds = new Set();   // Tracks one-time buys (e.g. golden sword)
     this.hud.setRetryCallback(() => { if (onRetry) onRetry(); });
     this.hud.setPauseCallback(() => this._togglePause());
     this.hud.setMusicToggleCallback((enabled) => {
@@ -33,6 +38,7 @@ export class Game {
       else         audioManager.stopMusic();
       this._musicEnabled = enabled;
     });
+    this.hud.setShopCallback(() => this._openShop());
     if (previousScores.length > 0) this.hud._scores = [...previousScores];
 
     this.player = new Player(200, 200);
@@ -65,6 +71,7 @@ export class Game {
 
     this._boundResize = () => this._onResize();
 window.addEventListener('resize', this._boundResize);
+
   }
 
   // -------------------------------------------------------
@@ -86,6 +93,7 @@ destroy() {
   this._running = false;
   audioManager.stopMusic();
   this.hud.destroy();
+  this.shop.destroy();
   window.removeEventListener('resize', this._boundResize);
 }
 
@@ -154,6 +162,53 @@ destroy() {
       case 'playerHit': this.camera.shake(0.8); break;
     }
   }
+    // ── ADD ────────────────────────────────────────────────────────────────────
+
+  _openShop() {
+    this._shopOpen = true;
+    // Game stays paused; just hide the settings popup by clearing HUD paused state
+    this.hud.setPaused(false);
+    this.shop.open(
+      this.levelManager.currentLevel,
+      this.coins,
+      this._permanentPurchaseIds,
+    );
+  }
+
+  _closeShop() {
+    this._shopOpen = false;
+    this._paused   = false;       // Resume game when shop closes
+    this.hud.setPaused(false);
+  }
+
+  _handleShopPurchase(item) {
+    if (this.coins < item.cost) return;   // Safety guard (Shop already checks this)
+    this.coins -= item.cost;
+
+    switch (item.type) {
+      case 'heal':
+        this.player.heal(item.value);
+        break;
+
+      case 'shield':
+        // Re-purchasing refreshes the full duration
+        this.player.applyShield(item.duration, item.reduction);
+        break;
+
+      case 'damage':
+        // One-time purchase guard — permanentIds tracks this across rounds
+        if (!this._permanentPurchaseIds.has(item.id)) {
+          this._permanentPurchaseIds.add(item.id);
+          this.player.applyDamageBoost(item.multiplier);
+        }
+        break;
+    }
+
+    // Keep shop's coin counter in sync immediately
+    this.shop.updateCoins(this.coins);
+  }
+
+  // ── END ADD ────────────────────────────────────────────────────────────────
 
   // -------------------------------------------------------
   // Game Loop
@@ -173,7 +228,8 @@ destroy() {
       return;
     }
 
-    if (this._paused) {
+    if (this._paused || this._shopOpen) {
+      if (this._shopOpen) this.shop.update(dt);
       this._render();
       requestAnimationFrame((ts) => this._loop(ts));
       return;
@@ -206,10 +262,13 @@ destroy() {
 
     this._updateMessage(dt);
     this.hud.update(dt, {
-      hp:    this.player.hp,
-      elo:   this.elo,
-      level: this.levelManager.currentLevel,
-      coins: this.coins,
+      hp:          this.player.hp,
+      elo:         this.elo,
+      level:       this.levelManager.currentLevel,
+      coins:       this.coins,
+      shieldActive: this.player.shieldActive,
+      shieldTimer:  this.player.shieldTimer,
+      damageMult:   this.player.damageMultiplier,
     });
 
     const ground = this.levelManager.ground;
@@ -299,6 +358,7 @@ destroy() {
       ? this.camera.getOffset()
       : { x: -(this.camera.x ?? 0), y: -(this.camera.y ?? 0) };
     this.hud.render(ctx, this.levelManager.message, this._messageAlpha, off.x, off.y);
+    if (this._shopOpen) this.shop.render(this.ctx);
   }
 
   _renderBackground(ctx, canvas) {

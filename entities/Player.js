@@ -92,6 +92,13 @@ export class Player {
     // Damage number callback: set by CollisionSystem
     // Signature: (worldX, worldY, amount, isPlayer) => void
     this.onDamageNumber = null;
+        // ── ADD ────────────────────────────────────────────────────────────────
+    // Shop-applied buffs
+    this.damageMultiplier = 1.0;    // Multiplicative; stacks across purchases
+    this.shieldActive     = false;
+    this.shieldTimer      = 0;
+    this.shieldReduction  = 0;      // Fraction of incoming damage blocked (0–1)
+    // ── END ADD ────────────────────────────────────────────────────────────
   }
 
   // -------------------------------------------------------
@@ -105,6 +112,35 @@ export class Player {
     this.coyoteTimer = COYOTE_TIME; // Reset coyote time when landing
     this.jumpsRemaining = this.maxJumps; // Reset jumps when landing
   }
+    // ── ADD ────────────────────────────────────────────────────────────────────
+  /**
+   * Apply a temporary damage-reduction shield.
+   * Re-purchasing refreshes the full duration.
+   * @param {number} duration   Seconds active
+   * @param {number} reduction  Fraction blocked, e.g. 0.5 = 50%
+   */
+  applyShield(duration, reduction) {
+    this.shieldActive    = true;
+    this.shieldTimer     = duration;
+    this.shieldReduction = reduction;
+  }
+
+  /**
+   * Multiply the player's attack damage (permanent, stacking).
+   * @param {number} multiplier  e.g. 1.10 for +10%
+   */
+  applyDamageBoost(multiplier) {
+    this.damageMultiplier *= multiplier;
+  }
+
+  /**
+   * Effective attack damage including all purchased boosts.
+   * CollisionSystem should read this instead of the PLAYER_ATTACK_DAMAGE constant.
+   */
+  get attackDamage() {
+    return Math.round(PLAYER_ATTACK_DAMAGE * this.damageMultiplier);
+  }
+  // ── END ADD ────────────────────────────────────────────────────────────────
 
   /**
    * Apply a hit: reduce HP, enter invulnerability, apply knockback.
@@ -115,6 +151,12 @@ export class Player {
     // Check dash invulnerability
     if (this.state === STATE.DASHING && this.dashInvulnerable) return;
     if (this.invulnTimer > 0 || !this.alive) return;
+        // ── ADD ──────────────────────────────────────────────────────────────────
+    // Reduce damage if shield is active (minimum 1 to avoid 0-damage hits)
+    if (this.shieldActive) {
+      damage = Math.max(1, Math.floor(damage * (1 - this.shieldReduction)));
+    }
+    // ── END ADD ──────────────────────────────────────────────────────────────
 
     this.hp = Math.max(0, this.hp - damage);
     this.invulnTimer = PLAYER_INVULN_DURATION;
@@ -224,6 +266,16 @@ export class Player {
     if (this.dashCooldown  > 0) this.dashCooldown  -= dt;
     if (this.coyoteTimer   > 0) this.coyoteTimer   -= dt;
     if (this.jumpBufferTimer > 0) this.jumpBufferTimer -= dt;
+    // In the timers section, alongside the existing `if (this.dashCooldown > 0) …`
+    // ── ADD ──────────────────────────────────────────────────────────────────
+    if (this.shieldTimer > 0) {
+      this.shieldTimer -= dt;
+      if (this.shieldTimer <= 0) {
+        this.shieldActive    = false;
+        this.shieldReduction = 0;
+      }
+    }
+    // ── END ADD ──────────────────────────────────────────────────────────────
 
     // Flicker effect during invulnerability
     if (this.invulnTimer > 0) {
@@ -467,7 +519,24 @@ export class Player {
         this.attackHitbox.width, this.attackHitbox.height
       );
     }
+        // Paste AFTER the existing dash invuln gold border block:
 
+    // ── ADD ──────────────────────────────────────────────────────────────────
+    // Shield active: pulsing cyan aura
+    if (this.shieldActive) {
+      const pulse = 0.55 + 0.45 * Math.sin(Date.now() / 180);
+      ctx.strokeStyle = `rgba(135,206,235,${pulse.toFixed(2)})`;
+      ctx.lineWidth   = 3;
+      ctx.strokeRect(this.x - 5, this.y - 5, this.width + 10, this.height + 10);
+    }
+
+    // Damage boost active: subtle gold outer glow
+    if (this.damageMultiplier > 1.0 && this.state !== STATE.DEAD) {
+      ctx.strokeStyle = 'rgba(255,215,0,0.45)';
+      ctx.lineWidth   = 2;
+      ctx.strokeRect(this.x - 3, this.y - 3, this.width + 6, this.height + 6);
+    }
+    // ── END ADD ──────────────────────────────────────────────────────────────
     ctx.restore();
   }
 
