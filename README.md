@@ -1,4 +1,4 @@
-# ⚔️ 2D ELO Game
+# ⚔️ ASCENT - 2D Combat Game
 
 > A browser-based 2D side-scrolling combat engine — built from scratch with vanilla JavaScript and HTML5 Canvas. No frameworks. No game engines. Just clean, modular systems architecture.
 
