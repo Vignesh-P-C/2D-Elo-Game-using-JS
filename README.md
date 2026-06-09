@@ -1,4 +1,4 @@
-# ⚔️ ASCENT - 2D Combat Game
+# ⚔️ ASCENT — 2D Combat Game
 
 > A browser-based 2D side-scrolling combat engine — built from scratch with vanilla JavaScript and HTML5 Canvas. No frameworks. No game engines. Just clean, modular systems architecture.
 
@@ -29,6 +29,7 @@ A fully custom 2D combat engine and game loop implemented without any external l
 **Key engineering focus areas:**
 - Frame-rate-independent player mechanics with jump buffering, coyote time, and dash
 - Eight distinct enemy archetypes, each with a unique AI state machine and attack pattern
+- In-game shop with per-round rotating inventory and persistent cross-round effects
 - Scalable, modular architecture designed for continued extension
 - Clean separation between game logic, rendering, input, and UI
 
@@ -62,7 +63,17 @@ The player controller prioritises **game feel** through a set of intentional phy
 - **Knockback physics** applied independently to both player and enemies, calculated from hit direction
 - **Healing orbs** spawn every 4 successful hits, rewarding aggressive play; an overheal system with decay prevents passive stacking
 - **Floating damage numbers** appear on every hit with animated scaling and fade, giving immediate feedback on effectiveness
-- **Coins** scattered across each level as collectibles tied to progression rewards
+- **Coins** scattered across each level, spent in the shop for strategic upgrades
+
+### Shop System
+
+An in-game shop accessible at any time from the settings menu. The inventory rotates every round, offering 3 items with escalating costs and power. All purchased effects carry over through boss fights and into subsequent rounds.
+
+| Slot | Example Item | Cost | Effect |
+|------|-------------|------|--------|
+| 1 | +25 HP | 🪙 1 | Instant heal — repeatable |
+| 2 | Iron Shield | 🪙 2 | 50% damage reduction for 10s — repeatable |
+| 3 | Golden Sword | 🪙 3 | +10% damage permanently — one-time |
 
 ---
 
@@ -111,20 +122,20 @@ style.css
 │       └── music_boss.mp3      # Swapped in automatically on boss spawn
 │
 ├── docs/
-│   ├── 2D_ELO_Game_Product_Checklist.xlsx  # Feature tracking and release checklist
-│   ├── implementation_guide.md             # Step-by-step integration notes for new systems
-│   ├── quick_reference.md                  # Per-file change summaries
-│   └── stats_reference.md                  # Enemy stats, multipliers, and progression tables
+│   ├── Ascent_Product_Checklist.xlsx   # Feature tracking and release checklist
+│   ├── implementation_guide.md         # Step-by-step integration notes for new systems
+│   ├── quick_reference.md              # Per-file change summaries
+│   └── stats_reference.md             # Enemy stats, multipliers, and progression tables
 │
 ├── entities/
-│   ├── Player.js           # Controller: movement, dash, attack, double jump, i-frames
+│   ├── Player.js           # Controller: movement, dash, attack, double jump, i-frames, buff system
 │   ├── Mob.js              # 8-type enemy with per-type AI state machines
 │   ├── Boss.js             # Phase-aware boss with charge behavior and phase 2 trigger
 │   ├── Projectile.js       # Archer projectile — velocity, lifetime, bounds, render
 │   └── Coin.js             # Collectible with float animation and pickup detection
 │
 ├── game/
-│   ├── Game.js             # Central orchestrator — loop, ELO state, subsystem wiring
+│   ├── Game.js             # Central orchestrator — loop, ELO state, shop state, subsystem wiring
 │   ├── LevelManager.js     # Wave scaling, platform generation, enemy spawning, level transitions
 │   ├── CollisionSystem.js  # Centralised AABB detection for all entity pairs + projectiles
 │   └── Camera.js           # Lerp-based follow with world clamping and screen shake
@@ -133,12 +144,13 @@ style.css
 │   └── InputManager.js     # Decoupled keyboard and mouse input with buffering
 │
 ├── ui/
-│   ├── HUD.js              # HP bar, ELO bar, level, coins, minimap, damage numbers, game over
+│   ├── HUD.js              # HP bar, ELO bar, level, coins, minimap, damage numbers, buff indicators, game over
+│   ├── Shop.js             # Round-rotating shop overlay with persistent upgrade effects
 │   ├── HealthBar.js        # Animated lerp health bar component
 │   └── EloBar.js           # Segmented animated ELO bar component
 │
 └── utils/
-    ├── Constants.js        # Single source of truth for all tunable values
+    ├── Constants.js        # Single source of truth for all tunable values + shop catalog
     ├── AssetLoader.js      # Asset preloading and audio manager export
     ├── AudioManager.js     # Music playback with normal/boss track switching
     └── MathUtils.js        # Shared helpers (clamp, lerp, AABB overlap)
@@ -156,10 +168,13 @@ All eight enemy variants live in `Mob.js`, each dispatched to a dedicated AI met
 All movement and physics calculations multiply by `deltaTime`, making the game frame-rate independent. This is critical for consistent feel across different hardware.
 
 **Event listener lifecycle management**
-`HUD` stores bound references to its `click` and `keydown` handlers and exposes a `destroy()` method. `Game.destroy()` calls it on retry, preventing listener accumulation across game sessions — a common source of compounding input bugs in canvas-based games.
+`HUD` and `Shop` both store bound references to their event handlers and expose a `destroy()` method. `Game.destroy()` calls both on retry, preventing listener accumulation across game sessions — a common source of compounding input bugs in canvas-based games.
+
+**Shop state isolation**
+The shop owns its own open/close lifecycle and communicates purchases back to `Game` via a single `onPurchase` callback. `Game` applies effects to the player and deducts coins; `Shop` never touches game state directly. This keeps the overlay independently testable and trivially replaceable.
 
 **`Constants.js` as tuning surface**
-Every gameplay value — speeds, cooldowns, ELO gains, knockback force, shield timing, enemy stat multipliers — lives in a single file. This was a deliberate decision to support rapid iteration and eliminate magic numbers scattered across the codebase.
+Every gameplay value — speeds, cooldowns, ELO gains, knockback force, shield timing, enemy stat multipliers, and the entire shop catalog — lives in a single file. This was a deliberate decision to support rapid iteration and eliminate magic numbers scattered across the codebase.
 
 ---
 
@@ -175,6 +190,7 @@ Starting ELO: 1000
 - Boss stats, wave composition, and platform layouts **scale with level**
 - Bosses enter **Phase 2 at 50% HP** with enhanced behaviour and reward multiplier
 - **Double jump** unlocks as a mid-game milestone reward
+- **Shop inventory** rotates every round; permanent upgrades (damage boosts) persist for the entire session
 - Level transitions trigger automatically after wave + boss clear
 
 ---
@@ -225,8 +241,8 @@ Install the Live Server extension → right-click `index.html` → Open with Liv
 | Minimap | ✅ Complete |
 | Coin collectibles | ✅ Complete |
 | Double jump unlock | ✅ Complete |
+| In-game shop (coin spending, rotating inventory, persistent upgrades) | ✅ Complete |
 | Sprite sheet animation pipeline | 🔄 In Progress |
-| In-game shop (coin spending) | 📋 Planned |
 | Build / loadout switching | 📋 Planned |
 | Sound effects | 📋 Planned |
 | Save / load progression | 📋 Planned |
@@ -238,17 +254,7 @@ Install the Live Server extension → right-click `index.html` → Open with Liv
 
 ## 💡 Engineering Reflection
 
-<!-- ============================================================ -->
-<!-- PLACEHOLDER: 2–4 sentences about your biggest takeaways.     -->
-<!-- Recruiters value self-awareness. Examples:                    -->
-<!-- - "Implementing coyote time taught me that game feel is a     -->
-<!--   product of careful input buffering, not just physics."      -->
-<!-- - "Centralizing collision detection forced me to think about  -->
-<!--   system boundaries early — a pattern I now apply outside     -->
-<!--   game development."                                          -->
-<!-- ============================================================ -->
-
-> *Add a short engineering reflection here — what surprised you, what you'd do differently, what this taught you about systems design.*
+> Building the shop system reinforced a lesson I kept running into throughout this project: UI state in a canvas game demands the same lifecycle discipline as component frameworks. Without explicit `destroy()` calls and bound handler references, event listeners accumulate silently across retries and compound into bugs that are nearly impossible to reproduce cleanly. Centralising collision detection in `CollisionSystem` rather than giving entities self-resolution logic forced me to define system boundaries before writing any game logic — a habit that now shapes how I think about service layers in web applications generally. The most surprising insight came from implementing coyote time and jump buffering: game feel is entirely a product of tolerances and timing windows, not physics accuracy. The physics that feels right is often technically wrong, and committing to that is the correct engineering decision.
 
 ---
 
