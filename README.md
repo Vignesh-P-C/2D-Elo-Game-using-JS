@@ -2,7 +2,7 @@
 
 > A browser-based 2D side-scrolling combat engine built from scratch with vanilla JavaScript and HTML5 Canvas. No frameworks. No game engines. Just clean, modular systems architecture.
 
-[![Play Live](🌐)](https://vignesh-p-c.github.io/Ascent-2D-combat-game/)
+[![Play Game](https://img.shields.io/badge/PLAY-GAME-success?style=for-the-badge&logo=itchdotio)](https://vignesh-p-c.github.io/Ascent-2D-combat-game/)
 
 ![JavaScript](https://img.shields.io/badge/JAVASCRIPT-ES6-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black)
 ![HTML5](https://img.shields.io/badge/HTML5-CANVAS-E34F26?style=for-the-badge&logo=html5&logoColor=white)
