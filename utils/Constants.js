@@ -252,14 +252,13 @@ export const COIN_MIN_X_OFFSET      = 400;
 export const COIN_MAX_GROUND_OFFSET = 84;
 export const COIN_MIN_GROUND_OFFSET = 20;
 
-// ── ADD ────────────────────────────────────────────────────────────────────
 // --- Shop ---
 // SHOP_CATALOG[i] = the 3 items available during round (i+1).
 // The last entry is reused for all rounds beyond the defined range.
 // id      — unique string; one-time items use it to track purchases
 // repeatable — true = can buy multiple times per shop visit
 export const SHOP_CATALOG = [
-  // Round 1 (as specified)
+  // Round 1
   [
     { id: 'r1_hp',     cost: 1, icon: '❤️',  label: '+25 HP',        desc: 'Restore 25 HP instantly. Repeatable.',             type: 'heal',   value: 25,         repeatable: true  },
     { id: 'r1_shield', cost: 2, icon: '🛡️',  label: 'Iron Shield',   desc: '50% less damage for 10 seconds.',                  type: 'shield', duration: 10, reduction: 0.50, repeatable: true  },
@@ -275,13 +274,24 @@ export const SHOP_CATALOG = [
   [
     { id: 'r3_hp',     cost: 2, icon: '❤️',  label: '+45 HP',        desc: 'Restore 45 HP instantly. Repeatable.',             type: 'heal',   value: 45,         repeatable: true  },
     { id: 'r3_shield', cost: 4, icon: '🛡️',  label: 'Aegis',         desc: '70% less damage for 10 seconds.',                  type: 'shield', duration: 10, reduction: 0.70, repeatable: true  },
-    { id: 'r3_sword',  cost: 6, icon: '⚔️',  label: 'Vorpal Edge',   desc: '+20% damage permanently. Persists all rounds.',    type: 'damage', multiplier: 1.20,  repeatable: false },
+    { id: 'unlock_dash', cost: 5, icon: '💨', label: 'Dash',          desc: 'Unlock right-click dash permanently.',              type: 'ability', ability: 'dash',  repeatable: false },
   ],
-  // Round 4+ (reused for all higher rounds)
+  // Round 4
   [
     { id: 'r4_hp',     cost: 3, icon: '❤️',  label: '+60 HP',        desc: 'Restore 60 HP instantly. Repeatable.',             type: 'heal',   value: 60,         repeatable: true  },
     { id: 'r4_shield', cost: 5, icon: '🛡️',  label: 'Divine Shield', desc: '75% less damage for 15 seconds.',                  type: 'shield', duration: 15, reduction: 0.75, repeatable: true  },
     { id: 'r4_sword',  cost: 8, icon: '⚔️',  label: 'Excalibur',     desc: '+25% damage permanently. Persists all rounds.',    type: 'damage', multiplier: 1.25,  repeatable: false },
   ],
+  // Round 5
+  [
+    { id: 'r5_hp',     cost: 3, icon: '❤️',  label: '+70 HP',        desc: 'Restore 70 HP instantly. Repeatable.',             type: 'heal',   value: 70,         repeatable: true  },
+    { id: 'unlock_double_jump', cost: 7, icon: '🪽', label: 'Double Jump', desc: 'Unlock a second jump permanently.',           type: 'ability', ability: 'doubleJump', repeatable: false },
+    { id: 'r5_sword',  cost: 9, icon: '⚔️',  label: 'Starforged Edge', desc: '+25% damage permanently. Persists all rounds.',  type: 'damage', multiplier: 1.25,  repeatable: false },
+  ],
+  // Round 6+ (reused for all higher rounds)
+  [
+    { id: 'r6_hp',     cost: 4, icon: '❤️',  label: '+80 HP',        desc: 'Restore 80 HP instantly. Repeatable.',             type: 'heal',   value: 80,         repeatable: true  },
+    { id: 'r6_shield', cost: 6, icon: '🛡️',  label: 'Divine Shield', desc: '75% less damage for 15 seconds.',                  type: 'shield', duration: 15, reduction: 0.75, repeatable: true  },
+    { id: 'r6_sword',  cost: 10, icon: '⚔️', label: 'Excalibur',     desc: '+25% damage permanently. Persists all rounds.',    type: 'damage', multiplier: 1.25,  repeatable: false },
+  ],
 ];
-// ── END ADD ─────────────────────────────────────────────────────────────────

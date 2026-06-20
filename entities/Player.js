@@ -65,40 +65,39 @@ export class Player {
     this._flickerTimer = 0;
     this._visible = true;
 
-    // --- NEW: Dash system ---
+    // Dash system
+    this.dashUnlocked = false;
     this.dashTimer = 0;
     this.dashCooldown = 0;
     this.dashInvulnerable = false; // Set based on level
 
-    // --- NEW: Healing orb tracking ---
+    // Healing orb tracking
     this.successfulHits = 0;
 
-    // --- NEW: Coyote time ---
+    // Coyote time
     this.coyoteTimer = 0;
 
-    // --- NEW: Jump buffer ---
+    // Jump buffer
     this.jumpBufferTimer = 0;
 
-    // --- NEW: Attack buffer ---
+    // Attack buffer
     this.attackBuffered = false;
 
-    // --- NEW: Overheal decay ---
+    // Overheal decay
     this.overhealDecayTimer = 0;
     
-    // --- NEW: Double jump ---
+    // Double jump
     this.maxJumps = 1;
     this.jumpsRemaining = 1;
 
     // Damage number callback: set by CollisionSystem
     // Signature: (worldX, worldY, amount, isPlayer) => void
     this.onDamageNumber = null;
-        // ── ADD ────────────────────────────────────────────────────────────────
     // Shop-applied buffs
     this.damageMultiplier = 1.0;    // Multiplicative; stacks across purchases
     this.shieldActive     = false;
     this.shieldTimer      = 0;
     this.shieldReduction  = 0;      // Fraction of incoming damage blocked (0–1)
-    // ── END ADD ────────────────────────────────────────────────────────────
   }
 
   // -------------------------------------------------------
@@ -112,7 +111,6 @@ export class Player {
     this.coyoteTimer = COYOTE_TIME; // Reset coyote time when landing
     this.jumpsRemaining = this.maxJumps; // Reset jumps when landing
   }
-    // ── ADD ────────────────────────────────────────────────────────────────────
   /**
    * Apply a temporary damage-reduction shield.
    * Re-purchasing refreshes the full duration.
@@ -140,7 +138,6 @@ export class Player {
   get attackDamage() {
     return Math.round(PLAYER_ATTACK_DAMAGE * this.damageMultiplier);
   }
-  // ── END ADD ────────────────────────────────────────────────────────────────
 
   /**
    * Apply a hit: reduce HP, enter invulnerability, apply knockback.
@@ -151,12 +148,10 @@ export class Player {
     // Check dash invulnerability
     if (this.state === STATE.DASHING && this.dashInvulnerable) return;
     if (this.invulnTimer > 0 || !this.alive) return;
-        // ── ADD ──────────────────────────────────────────────────────────────────
     // Reduce damage if shield is active (minimum 1 to avoid 0-damage hits)
     if (this.shieldActive) {
       damage = Math.max(1, Math.floor(damage * (1 - this.shieldReduction)));
     }
-    // ── END ADD ──────────────────────────────────────────────────────────────
 
     this.hp = Math.max(0, this.hp - damage);
     this.invulnTimer = PLAYER_INVULN_DURATION;
@@ -221,6 +216,13 @@ export class Player {
   }
 
   /**
+   * Unlock dash ability.
+   */
+  unlockDash() {
+    this.dashUnlocked = true;
+  }
+
+  /**
    * Unlock double jump ability.
    */
   unlockDoubleJump() {
@@ -266,8 +268,6 @@ export class Player {
     if (this.dashCooldown  > 0) this.dashCooldown  -= dt;
     if (this.coyoteTimer   > 0) this.coyoteTimer   -= dt;
     if (this.jumpBufferTimer > 0) this.jumpBufferTimer -= dt;
-    // In the timers section, alongside the existing `if (this.dashCooldown > 0) …`
-    // ── ADD ──────────────────────────────────────────────────────────────────
     if (this.shieldTimer > 0) {
       this.shieldTimer -= dt;
       if (this.shieldTimer <= 0) {
@@ -275,7 +275,6 @@ export class Player {
         this.shieldReduction = 0;
       }
     }
-    // ── END ADD ──────────────────────────────────────────────────────────────
 
     // Flicker effect during invulnerability
     if (this.invulnTimer > 0) {
@@ -292,7 +291,7 @@ export class Player {
     }
 
     // --- Dash input ---
-    if (input.dash && this.dashCooldown <= 0 && this.state !== STATE.DEAD) {
+    if (this.dashUnlocked && input.dash && this.dashCooldown <= 0 && this.state !== STATE.DEAD) {
       // Can dash if not attacking, or if enough time has passed in attack
       const canDashDuringAttack = this.state === STATE.ATTACKING && 
                                   (PLAYER_ATTACK_DURATION - this.attackTimer) >= DASH_ATTACK_CANCEL_TIME;
@@ -341,15 +340,18 @@ export class Player {
       this.jumpBufferTimer = JUMP_BUFFER_TIME;
     }
 
-    // --- Jump (with double jump support) ---
-    // Can jump if: have jumps remaining AND not in certain states
-    const canJump = this.jumpsRemaining > 0 && 
-                    this.state !== STATE.ATTACKING && 
-                    this.state !== STATE.DASHING;
-    
-    if (this.jumpBufferTimer > 0 && canJump) {
+    // --- Jump (with coyote time and double jump support) ---
+    const canActJump = this.state !== STATE.ATTACKING && this.state !== STATE.DASHING;
+    const canGroundJump = this.onGround || this.coyoteTimer > 0;
+    const canAirJump = !canGroundJump && this.jumpsRemaining > 0;
+
+    if (this.jumpBufferTimer > 0 && canActJump && (canGroundJump || canAirJump)) {
       this.vy = PLAYER_JUMP_FORCE;
-      this.jumpsRemaining--;
+      if (canGroundJump) {
+        this.jumpsRemaining = Math.max(0, this.maxJumps - 1);
+      } else {
+        this.jumpsRemaining--;
+      }
       this.onGround = false;
       this.coyoteTimer = 0;
       this.jumpBufferTimer = 0;
@@ -521,7 +523,6 @@ export class Player {
     }
         // Paste AFTER the existing dash invuln gold border block:
 
-    // ── ADD ──────────────────────────────────────────────────────────────────
     // Shield active: pulsing cyan aura
     if (this.shieldActive) {
       const pulse = 0.55 + 0.45 * Math.sin(Date.now() / 180);
@@ -536,7 +537,6 @@ export class Player {
       ctx.lineWidth   = 2;
       ctx.strokeRect(this.x - 3, this.y - 3, this.width + 6, this.height + 6);
     }
-    // ── END ADD ──────────────────────────────────────────────────────────────
     ctx.restore();
   }
 

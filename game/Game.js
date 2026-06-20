@@ -21,6 +21,7 @@ export class Game {
 
     this.elo                 = ELO_START;
     this.coins               = 0;
+    this.dashUnlocked        = false;
     this.doubleJumpUnlocked  = false;
 
     this.input  = new InputManager();
@@ -39,7 +40,7 @@ export class Game {
       this._musicEnabled = enabled;
     });
     this.hud.setShopCallback(() => this._openShop());
-    if (previousScores.length > 0) this.hud._scores = [...previousScores];
+    if (previousScores.length > 0) this.hud.setScores(previousScores);
 
     this.player = new Player(200, 200);
 
@@ -52,13 +53,13 @@ export class Game {
       player:             this.player,
       onLevelComplete:    (n)  => this._loadLevel(n),
       onEloGain:          (a)  => this._addElo(a),
-      onDoubleJumpUnlock: ()   => this._unlockDoubleJump(),
     });
 
     this._isBossLevel  = false;
     this._musicEnabled = true;
-    window.addEventListener('keydown',     () => this._initAudio(), { once: true });
-    window.addEventListener('pointerdown', () => this._initAudio(), { once: true });
+    this._boundInitAudio = () => this._initAudio();
+    window.addEventListener('keydown',     this._boundInitAudio, { once: true });
+    window.addEventListener('pointerdown', this._boundInitAudio, { once: true });
 
     this.collision = null;
 
@@ -70,7 +71,7 @@ export class Game {
     this._scoreRecorded = false;
 
     this._boundResize = () => this._onResize();
-window.addEventListener('resize', this._boundResize);
+    window.addEventListener('resize', this._boundResize);
 
   }
 
@@ -87,14 +88,17 @@ window.addEventListener('resize', this._boundResize);
     requestAnimationFrame((ts) => this._loop(ts));
   }
 
-  getSessionScores() { return this.hud._scores; }
+  getSessionScores() { return this.hud.getScores(); }
 
 destroy() {
   this._running = false;
   audioManager.stopMusic();
+  this.input.destroy();
   this.hud.destroy();
   this.shop.destroy();
   window.removeEventListener('resize', this._boundResize);
+  window.removeEventListener('keydown', this._boundInitAudio);
+  window.removeEventListener('pointerdown', this._boundInitAudio);
 }
 
   // -------------------------------------------------------
@@ -147,6 +151,13 @@ destroy() {
     this.hud.setPaused(this._paused);
   }
 
+  _unlockDash() {
+    if (this.dashUnlocked) return;
+    this.dashUnlocked = true;
+    this.player.unlockDash();
+    this.levelManager._showMessage('DASH UNLOCKED!');
+  }
+
   _unlockDoubleJump() {
     if (this.doubleJumpUnlocked) return;
     this.doubleJumpUnlocked = true;
@@ -162,8 +173,6 @@ destroy() {
       case 'playerHit': this.camera.shake(0.8); break;
     }
   }
-    // ── ADD ────────────────────────────────────────────────────────────────────
-
   _openShop() {
     this._shopOpen = true;
     // Game stays paused; just hide the settings popup by clearing HUD paused state
@@ -202,13 +211,19 @@ destroy() {
           this.player.applyDamageBoost(item.multiplier);
         }
         break;
+
+      case 'ability':
+        if (!this._permanentPurchaseIds.has(item.id)) {
+          this._permanentPurchaseIds.add(item.id);
+          if (item.ability === 'dash') this._unlockDash();
+          if (item.ability === 'doubleJump') this._unlockDoubleJump();
+        }
+        break;
     }
 
     // Keep shop's coin counter in sync immediately
     this.shop.updateCoins(this.coins);
   }
-
-  // ── END ADD ────────────────────────────────────────────────────────────────
 
   // -------------------------------------------------------
   // Game Loop
@@ -269,6 +284,8 @@ destroy() {
       shieldActive: this.player.shieldActive,
       shieldTimer:  this.player.shieldTimer,
       damageMult:   this.player.damageMultiplier,
+      dashUnlocked: this.dashUnlocked,
+      doubleJumpUnlocked: this.doubleJumpUnlocked,
     });
 
     const ground = this.levelManager.ground;

@@ -22,12 +22,11 @@ import {
 import { randFloat, randInt } from '../utils/MathUtils.js';
 
 export class LevelManager {
-  constructor({ canvas, player, onLevelComplete, onEloGain, onDoubleJumpUnlock }) {
+  constructor({ canvas, player, onLevelComplete, onEloGain }) {
     this.canvas          = canvas;
     this.player          = player;
     this.onLevelComplete = onLevelComplete;
     this.onEloGain       = onEloGain;
-    this.onDoubleJumpUnlock = onDoubleJumpUnlock || (() => {});
 
     this.currentLevel = 1;
 
@@ -36,7 +35,7 @@ export class LevelManager {
     this.boss        = null;
     this.orbs        = [];
     this.coins       = [];
-    this.projectiles = [];  // NEW: for archer projectiles
+    this.projectiles = [];
     this.platforms   = [];
     this.ground      = null;
     this.worldWidth  = 0;
@@ -82,7 +81,6 @@ export class LevelManager {
     for (const orb of this.orbs) orb.update(dt);
     this.orbs = this.orbs.filter(o => o.active);
 
-    // Update projectiles (NEW)
     for (const proj of this.projectiles) proj.update(dt);
     this.projectiles = this.projectiles.filter(p => p.active);
 
@@ -134,7 +132,7 @@ export class LevelManager {
     this.mobs         = this._spawnMobs(level, canvas);
     this.boss         = null;
     this.orbs         = [];
-    this.projectiles  = [];  // Reset projectiles for new level
+    this.projectiles  = [];
     this.coins        = this._spawnCoins(level, canvas);
     this._bossSpawned   = false;
     this._levelComplete = false;
@@ -309,7 +307,6 @@ export class LevelManager {
     this._levelComplete = true;
     this._levelEndTimer = LEVEL_NEXT_DELAY;
     this.player.heal(BOSS_DEFEAT_HEAL);
-    if (this.currentLevel === 3) this.onDoubleJumpUnlock();
     this._showMessage(`Level ${this.currentLevel} Complete!`);
   }
 

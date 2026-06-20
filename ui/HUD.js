@@ -47,12 +47,12 @@ export class HUD {
     this._paused       = false;
     this._musicOn      = true;
     this._showControls = false;
-        // ── ADD ──────────────────────────────────────────────────────────────────
     this._onShop      = null;
     this._shieldActive = false;
     this._shieldTimer  = 0;
     this._damageMult   = 1.0;
-    // ── END ADD ──────────────────────────────────────────────────────────────
+    this._dashUnlocked = false;
+    this._doubleJumpUnlocked = false;
 
     this._settingsBtns = {};
 
@@ -76,10 +76,12 @@ export class HUD {
   setRetryCallback(fn)       { this._onRetry       = fn; }
   setPauseCallback(fn)       { this._onPause       = fn; }
   setMusicToggleCallback(fn) { this._onMusicToggle = fn; }
-  // ── ADD ──────────────────────────────────────────────────────────────────
   setShopCallback(fn) { this._onShop = fn; }
-  // ── END ADD ──────────────────────────────────────────────────────────────
   setPaused(paused)          { this._paused = paused; }
+
+  getScores() { return [...this._scores]; }
+
+  setScores(scores) { this._scores = [...scores]; }
 
   recordScore(elo, level) {
     this._scores.push({ elo, level });
@@ -120,11 +122,11 @@ export class HUD {
     this._elo   = state.elo;
     this._level = state.level;
     this._coins = state.coins ?? 0;
-        // ── ADD ──────────────────────────────────────────────────────────────────
     this._shieldActive = state.shieldActive ?? false;
     this._shieldTimer  = state.shieldTimer  ?? 0;
     this._damageMult   = state.damageMult   ?? 1.0;
-    // ── END ADD ──────────────────────────────────────────────────────────────
+    this._dashUnlocked = state.dashUnlocked ?? false;
+    this._doubleJumpUnlocked = state.doubleJumpUnlocked ?? false;
     this.healthBar.update(state.hp, dt);
     this.eloBar.update(state.elo, dt);
 
@@ -314,8 +316,7 @@ export class HUD {
 
     ctx.fillStyle = '#FFD700';
     ctx.fillText(`🪙 ${this._coins}`, pad, pad + rowH * 2 + 24);
-    ctx.restore();
-        if (this._shieldActive) {
+    if (this._shieldActive) {
       ctx.fillStyle = '#87CEEB';
       ctx.fillText(`🛡️ ${Math.ceil(this._shieldTimer)}s`, pad, pad + rowH * 2 + 44);
     }
@@ -324,6 +325,7 @@ export class HUD {
       const col = this._shieldActive ? pad + 70 : pad;
       ctx.fillText(`⚔️ ×${this._damageMult.toFixed(2)}`, col, pad + rowH * 2 + 44);
     }
+    ctx.restore();
   }
 
   // -------------------------------------------------------
@@ -584,7 +586,7 @@ export class HUD {
     ctx.fillText('L', mouseX + 8,  mouseY + 22);
     ctx.fillText('R', mouseX + 24, mouseY + 22);
     drawLabel('Left Click — Attack', mouseX + 44, mouseY + 16);
-    drawLabel('Right Click — Dash',  mouseX + 44, mouseY + 32);
+    drawLabel(this._dashUnlocked ? 'Right Click — Dash' : 'Right Click — Dash Locked', mouseX + 44, mouseY + 32);
 
     const escX = popX + popW - 44 - ks;
     const escY = popY + 80;
@@ -627,8 +629,10 @@ export class HUD {
     ctx.font         = '11px monospace';
     ctx.textAlign    = 'left';
     ctx.textBaseline = 'bottom';
+    const jumpText = this._doubleJumpUnlocked ? 'Jump: ↑ / W / Space x2' : 'Jump: ↑ / W / Space';
+    const dashText = this._dashUnlocked ? 'Dash: Right Click' : 'Dash: Locked';
     ctx.fillText(
-      'Move: ←→ / AD   Jump: ↑ / W / Space   Attack: Left Click   Dash: Right Click   Settings: ESC',
+      `Move: ←→ / AD   ${jumpText}   Attack: Left Click   ${dashText}   Settings: ESC`,
       HUD_PADDING, this.canvas.height - HUD_PADDING
     );
     ctx.restore();

@@ -1,5 +1,5 @@
 import { aabbOverlap, aabbResolve } from '../utils/MathUtils.js';
-import { STATE } from '../utils/Constants.js';
+import { LEVEL_GROUND_THICKNESS, STATE } from '../utils/Constants.js';
 
 export class CollisionSystem {
   constructor({ player, mobs, boss, orbs, coins, projectiles, platforms, ground, worldWidth, worldHeight, onEloGain, onSpawnOrb, onHitEvent, onCoinCollected }) {
@@ -66,7 +66,7 @@ export class CollisionSystem {
       }
     }
 
-    const floor = this.worldHeight - 60;
+    const floor = this.ground?.y ?? this.worldHeight - LEVEL_GROUND_THICKNESS;
     if (entity.y + entity.height > floor) {
       entity.y = floor - entity.height;
       entity.landOnGround();

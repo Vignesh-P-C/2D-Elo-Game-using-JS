@@ -14,9 +14,7 @@ export class InputManager {
     this._pendingPress = new Set();
 
     // Mouse button tracking
-    this._leftMousePressed = false;
     this._leftMouseJustPressed = false;
-    this._rightMousePressed = false;
     this._rightMouseJustPressed = false;
 
     this._onKeyDown = this._onKeyDown.bind(this);
@@ -58,11 +56,7 @@ export class InputManager {
   }
 
   _onMouseUp(e) {
-    if (e.button === 0) {
-      this._leftMousePressed = false;
-    } else if (e.button === 2) {
-      this._rightMousePressed = false;
-    }
+    // Held mouse state is intentionally not tracked; attack/dash are edge-triggered.
   }
 
   _onContextMenu(e) {
